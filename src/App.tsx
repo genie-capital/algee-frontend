@@ -20,7 +20,7 @@ import BatchAssessment from './pages/BatchAssessment';
 export function App() {
   // Mock user data - in a real app, this would come from authentication
   const [userData, setUserData] = useState({
-    isLoggedIn: false,
+    isLoggedIn: true,
     institutionName: "First National Bank",
     userName: "John Smith",
     institutionLogo: ""
@@ -44,7 +44,7 @@ export function App() {
   const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     if (!userData.isLoggedIn) {
       // In a real app, this would redirect to login
-      return <Login />;
+      return <Dashboard/>;
     }
     
     return (

@@ -99,7 +99,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /frontend/
+        server-dir: /
         exclude: |
           **/.git*
           **/.git*/**
@@ -111,6 +111,6 @@ jobs:
     - name: Deployment Success Notification
       run: |
         echo "🎉 Deployment completed successfully!"
-        echo "🌐 Your app should be available at: https://yourdomain.com"
-        echo "📁 Files are stored in: /frontend/ directory"
+        echo "🌐 Your app should be available at: https://algee.com"
+        echo "📁 Files are stored in: / directory"
         echo "⏰ Deployed at: $(date)" 
