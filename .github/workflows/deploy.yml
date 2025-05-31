@@ -112,5 +112,5 @@ jobs:
       run: |
         echo "🎉 Deployment completed successfully!"
         echo "🌐 Your app should be available at: https://algee.com"
-        echo "📁 Files are stored in: / directory"
+        echo "📁 Files are stored in: ngorocod/algee.com/frontend/ directory"
         echo "⏰ Deployed at: $(date)" 
