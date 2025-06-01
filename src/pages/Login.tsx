@@ -93,8 +93,7 @@ const Login = () => {
           </div>
           <div className="mt-2 text-xs">
             <p>
-              System will automatically log you out after 15 minutes of
-              inactivity
+              System will automatically log you out after 1 hour of
             </p>
           </div>
         </div>
