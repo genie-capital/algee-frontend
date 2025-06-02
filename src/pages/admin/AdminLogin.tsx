@@ -1,29 +1,69 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import Logo from '../../components/common/Logo';
-
-// Hardcoded admin credentials
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "admin123";
+import { useAuth } from '../../contexts/AuthContext';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ErrorAlert from '../../components/common/ErrorAlert';
+import { validateForm, required } from '../../utils/validation';
 
 const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    username: '',
+    password: ''
+  });
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+  
+  const { login, error, clearError, isAuthenticated, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Redirect if already authenticated as admin
+  useEffect(() => {
+    if (isAuthenticated && isAdmin) {
+      const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
+      navigate(from);
+    } else if (isAuthenticated && !isAdmin) {
+      // If authenticated but not admin, redirect to institution dashboard
+      navigate('/workspace-dashboard');
+    }
+  }, [isAuthenticated, isAdmin, navigate, location]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user types
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
+    // Clear global error when user makes changes
+    if (error) clearError();
+  };
+
+  const validateFormData = () => {
+    const rules = {
+      username: [required('Username is required')],
+      password: [required('Password is required')]
+    };
+    
+    const errors = validateForm(formData, rules);
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check against hardcoded credentials
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      // Set admin session
-      sessionStorage.setItem('adminAuthenticated', 'true');
-      navigate('/admin/dashboard');
-    } else {
-      setError('Invalid username or password');
+    // Validate form
+    if (!validateFormData()) return;
+    
+    try {
+      await login(formData.username, formData.password, true);
+      // Navigation is handled in the useEffect
+    } catch (err) {
+      // Error is handled by the auth context
+      console.error('Login error:', err);
     }
   };
 
@@ -43,32 +83,28 @@ const AdminLogin = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {error && (
-            <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
-              <div className="flex">
-                <div className="ml-3">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {error && <ErrorAlert message={error} onDismiss={clearError} />}
           
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Username
+                Admin Email
               </label>
               <div className="mt-1">
                 <input
                   id="username"
                   name="username"
+                  placeholder="Enter your admin email"
                   type="text"
                   required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#07002F] focus:border-[#07002F] sm:text-sm"
+                  value={formData.username}
+                  onChange={handleChange}
+                  className={`appearance-none block w-full px-3 py-2 border ${formErrors.username ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#07002F] focus:border-[#07002F] sm:text-sm`}
                 />
               </div>
+              {formErrors.username && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.username}</p>
+              )}
             </div>
 
             <div>
@@ -81,9 +117,9 @@ const AdminLogin = () => {
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#07002F] focus:border-[#07002F] sm:text-sm"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`appearance-none block w-full px-3 py-2 border ${formErrors.password ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#07002F] focus:border-[#07002F] sm:text-sm`}
                 />
                 <button
                   type="button"
@@ -93,14 +129,18 @@ const AdminLogin = () => {
                   {showPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
                 </button>
               </div>
+              {formErrors.password && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.password}</p>
+              )}
             </div>
 
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#07002F] hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#008401]"
+                disabled={loading}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#07002F] hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#008401] disabled:opacity-50"
               >
-                Sign in
+                {loading ? <LoadingSpinner size="small" text="" /> : 'Sign in'}
               </button>
             </div>
           </form>

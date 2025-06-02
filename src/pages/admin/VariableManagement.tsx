@@ -1,74 +1,122 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusIcon, EditIcon, TrashIcon, ToggleLeftIcon, ToggleRightIcon } from 'lucide-react';
 import Button from '../../components/common/Button';
+import api from '../../services/api';
+import ParameterFormModal from '../../components/admin/ParameterFormModal';
+
+// Define interfaces for type safety
+interface Variable {
+  id: string | number;
+  name: string;
+  description: string;
+  weight: number;
+  required: boolean;
+  enabled: boolean;
+  normalization: string;
+}
+
+interface ParamData {
+  name: string;
+  description: string;
+  required: boolean;
+  enabled: boolean;
+}
+
+interface ApiResponse {
+  success: boolean;
+  data: Variable[];
+}
+
 const VariableManagement = () => {
-  // Mock data for demonstration purposes
-  const variables = [{
-    id: 1,
-    name: 'Monthly Income',
-    description: 'Verified monthly income of the client',
-    weight: 10,
-    required: true,
-    enabled: true,
-    normalization: 'Linear'
-  }, {
-    id: 2,
-    name: 'Credit History',
-    description: 'Years of credit history',
-    weight: 8,
-    required: true,
-    enabled: true,
-    normalization: 'Linear'
-  }, {
-    id: 3,
-    name: 'Employment Years',
-    description: 'Years at current employment',
-    weight: 7,
-    required: true,
-    enabled: true,
-    normalization: 'Logarithmic'
-  }, {
-    id: 4,
-    name: 'Age',
-    description: 'Client age in years',
-    weight: 5,
-    required: true,
-    enabled: true,
-    normalization: 'Sigmoid'
-  }, {
-    id: 5,
-    name: 'Existing Loans',
-    description: 'Number of existing loans',
-    weight: 6,
-    required: true,
-    enabled: true,
-    normalization: 'Inverse'
-  }, {
-    id: 6,
-    name: 'Dependents',
-    description: 'Number of financial dependents',
-    weight: 4,
-    required: false,
-    enabled: true,
-    normalization: 'Linear'
-  }, {
-    id: 7,
-    name: 'Property Ownership',
-    description: 'Whether client owns property',
-    weight: 7,
-    required: false,
-    enabled: true,
-    normalization: 'Binary'
-  }, {
-    id: 8,
-    name: 'Education Level',
-    description: 'Highest education level achieved',
-    weight: 3,
-    required: false,
-    enabled: false,
-    normalization: 'Categorical'
-  }];
-  return <div className="max-w-7xl mx-auto">
+  const [variables, setVariables] = useState<Variable[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [currentVariable, setCurrentVariable] = useState<Variable | null>(null);
+
+  // Fetch all parameters on component mount
+  useEffect(() => {
+    fetchParameters();
+  }, []);
+
+  const fetchParameters = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      const response = await api.post<ApiResponse>('/parameter/all');
+      if (response.data.success) {
+        setVariables(response.data.data);
+      } else {
+        setError('Failed to fetch parameters');
+      }
+    } catch (err) {
+      console.error('Error fetching parameters:', err);
+      setError('An error occurred while fetching parameters');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateParameter = async (paramData: ParamData): Promise<void> => {
+    try {
+      const response = await api.post('/parameter/create', {
+        name: paramData.name,
+        description: paramData.description,
+        isRequired: paramData.required,
+        isActive: paramData.enabled
+      });
+      
+      if (response.data) {
+        fetchParameters(); // Refresh the list
+        setShowCreateModal(false);
+      } else {
+        setError('Failed to create parameter');
+      }
+    } catch (err) {
+      console.error('Error creating parameter:', err);
+      setError('An error occurred while creating parameter');
+    }
+  };
+
+  const handleUpdateParameter = async (id: string | number, paramData: ParamData): Promise<void> => {
+    try {
+      const response = await api.post(`/parameter/update/${id}`, {
+        name: paramData.name,
+        description: paramData.description,
+        isRequired: paramData.required,
+        isActive: paramData.enabled
+      });
+      
+      if (response.data) {
+        fetchParameters(); // Refresh the list
+        setShowEditModal(false);
+      } else {
+        setError('Failed to update parameter');
+      }
+    } catch (err) {
+      console.error('Error updating parameter:', err);
+      setError('An error occurred while updating parameter');
+    }
+  };
+
+  const handleDeleteParameter = async (id: string | number): Promise<void> => {
+    if (window.confirm('Are you sure you want to delete this parameter?')) {
+      try {
+        const response = await api.post<ApiResponse>(`/parameter/delete/${id}`);
+        if (response.data.success) {
+          fetchParameters(); // Refresh the list
+        } else {
+          setError('Failed to delete parameter');
+        }
+      } catch (err) {
+        console.error('Error deleting parameter:', err);
+        setError('An error occurred while deleting parameter');
+      }
+    }
+  };
+  
+  return (
+    <div className="max-w-7xl mx-auto">
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -79,7 +127,7 @@ const VariableManagement = () => {
           </p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4">
-          <Button>
+          <Button onClick={() => setShowCreateModal(true)}>
             <PlusIcon className="h-4 w-4 mr-1" />
             Add Variable
           </Button>
@@ -124,7 +172,8 @@ const VariableManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {variables.map(variable => <tr key={variable.id}>
+              {variables.map((variable: Variable) => (
+                <tr key={variable.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {variable.name}
                   </td>
@@ -135,8 +184,8 @@ const VariableManagement = () => {
                     <div className="flex items-center">
                       <div className="h-2 w-full bg-gray-200 rounded">
                         <div className="h-2 bg-[#008401] rounded" style={{
-                      width: `${variable.weight / 10 * 100}%`
-                    }}></div>
+                          width: `${variable.weight / 10 * 100}%`
+                        }}></div>
                       </div>
                       <span className="ml-2 text-sm text-gray-700">
                         {variable.weight}
@@ -148,15 +197,19 @@ const VariableManagement = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      {variable.enabled ? <>
+                      {variable.enabled ? (
+                        <>
                           <ToggleRightIcon className="h-5 w-5 text-green-500 mr-1.5" />
                           <span className="text-sm text-gray-900">Enabled</span>
-                        </> : <>
+                        </>
+                      ) : (
+                        <>
                           <ToggleLeftIcon className="h-5 w-5 text-gray-400 mr-1.5" />
                           <span className="text-sm text-gray-500">
                             Disabled
                           </span>
-                        </>}
+                        </>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -164,17 +217,29 @@ const VariableManagement = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setCurrentVariable(variable);
+                          setShowEditModal(true);
+                        }}
+                      >
                         <EditIcon className="h-4 w-4 mr-1" />
                         Edit
                       </Button>
-                      <Button variant="danger" size="sm">
+                      <Button 
+                        variant="danger" 
+                        size="sm"
+                        onClick={() => handleDeleteParameter(variable.id)}
+                      >
                         <TrashIcon className="h-4 w-4 mr-1" />
                         Delete
                       </Button>
                     </div>
                   </td>
-                </tr>)}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -245,6 +310,27 @@ const VariableManagement = () => {
           </div>
         </div>
       </div>
-    </div>;
+
+      {/* Create Parameter Modal */}
+      {showCreateModal && (
+        <ParameterFormModal
+          title="Create New Parameter"
+          onSubmit={handleCreateParameter}
+          onCancel={() => setShowCreateModal(false)}
+        />
+      )}
+
+      {/* Edit Parameter Modal */}
+      {showEditModal && currentVariable && (
+        <ParameterFormModal
+          title={`Edit Parameter: ${currentVariable.name}`}
+          parameter={currentVariable}
+          onSubmit={(data) => handleUpdateParameter(currentVariable.id, data)}
+          onCancel={() => setShowEditModal(false)}
+        />
+      )}
+    </div>
+  );
 };
+
 export default VariableManagement;

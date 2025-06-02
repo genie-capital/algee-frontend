@@ -1,8 +1,9 @@
 import React from 'react';
 import { UploadIcon, FileTextIcon, AlertCircleIcon, CheckCircleIcon } from 'lucide-react';
 import Button from '../components/common/Button';
+import Layout from '../components/Layout';
 const BatchAssessment = () => {
-  return <div className="max-w-7xl mx-auto">
+  return <Layout>
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -183,6 +184,6 @@ const BatchAssessment = () => {
           </table>
         </div>
       </div>
-    </div>;
+    </Layout>;
 };
 export default BatchAssessment;

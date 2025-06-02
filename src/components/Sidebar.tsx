@@ -28,11 +28,11 @@ const Sidebar = () => {
       href: '/credit-parameters-config',
       icon: SettingsIcon
     },
-    {
-      name: 'Individual Client Entry',
-      href: '/client-assessment',
-      icon: UserIcon
-    },
+    // {
+    //   name: 'Individual Client Entry',
+    //   href: '/client-assessment',
+    //   icon: UserIcon
+    // },
     {
       name: 'Batch Upload',
       href: '/batch-assessment',

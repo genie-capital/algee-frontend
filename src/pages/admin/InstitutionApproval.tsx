@@ -21,7 +21,7 @@ import {
 import Button from '../../components/common/Button';
 
 // Mock data for pending institutions
-const mockPendingInstitutions = [
+const mockPendingInstitutions: Institution[] = [
   {
     id: 1,
     name: 'First National Bank',

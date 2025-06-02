@@ -3,6 +3,7 @@ import { InfoIcon, HistoryIcon, RefreshCcwIcon, SaveIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
+import Layout from '../components/Layout';
 
 interface ParameterInfo {
   name: string;
@@ -100,7 +101,7 @@ const CreditParametersConfig = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <Layout>
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -406,7 +407,7 @@ const CreditParametersConfig = () => {
           </form>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

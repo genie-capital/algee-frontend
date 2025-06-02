@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { InfoIcon } from 'lucide-react';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
+import Layout from '../components/Layout';
 const ClientAssessment = () => {
   const [formData, setFormData] = useState({
     clientRef: '',
@@ -51,7 +52,7 @@ const ClientAssessment = () => {
     });
     setResult(null);
   };
-  return <div className="max-w-7xl mx-auto">
+  return <Layout>
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -187,6 +188,6 @@ const ClientAssessment = () => {
             </div>
           </div>
         </div>}
-    </div>;
+    </Layout>;
 };
 export default ClientAssessment;

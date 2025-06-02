@@ -83,7 +83,9 @@ const UserManagement = () => {
             <h3 className="text-lg font-medium text-gray-900">System Users</h3>
             <div className="mt-3 sm:mt-0 flex flex-col sm:flex-row sm:space-x-3 space-y-2 sm:space-y-0">
               <input type="text" className="focus:ring-[#008401] focus:border-[#008401] block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Search users..." />
-              <select className="block w-full sm:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#008401] focus:border-[#008401] sm:text-sm rounded-md">
+              <select 
+                aria-label="Filter by institution"
+                className="block w-full sm:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#008401] focus:border-[#008401] sm:text-sm rounded-md">
                 <option value="all">All Institutions</option>
                 <option value="First Bank">First Bank</option>
                 <option value="Credit Union">Credit Union</option>

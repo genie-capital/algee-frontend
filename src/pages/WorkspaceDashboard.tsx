@@ -11,6 +11,8 @@ import {
   Settings
 } from 'lucide-react';
 import Button from '../components/common/Button';
+import Layout from '../components/Layout';
+// Remove Sidebar import as it's provided by Layout
 
 // Mock data for demonstration purposes
 const mockStats = {
@@ -29,7 +31,9 @@ const WorkspaceDashboard = () => {
   const [period, setPeriod] = useState('month');
 
   return (
-    <div className="max-w-7xl mx-auto">
+    // Remove the outer container div as Layout will provide it
+    <Layout>
+      {/* Page Title and Actions */}
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -183,10 +187,10 @@ const WorkspaceDashboard = () => {
           <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
         </div>
         <div className="p-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Link to="/client-assessment">
+          <Link to="/batch-assessment">
             <Button className="w-full flex justify-center items-center">
               <UserPlus className="h-5 w-5 mr-2" />
-              Input New Client Data
+              Input New Batch Data
             </Button>
           </Link>
           <Link to="/results">
@@ -256,7 +260,7 @@ const WorkspaceDashboard = () => {
           </Button>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

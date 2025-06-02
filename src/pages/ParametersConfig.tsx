@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { InfoIcon, ClockIcon, HistoryIcon } from 'lucide-react';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
+import Layout from '../components/Layout';
+import { getParametersForInstitution, updateInstitutionParameterValue } from '../services/institutionParameterService';
+import { useEffect } from 'react';
+
 const ParametersConfig = () => {
   const [formData, setFormData] = useState({
     maxRiskyLoanAmount: '25000',
@@ -26,16 +30,57 @@ const ParametersConfig = () => {
       [name]: value
     });
   };
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [institutionId, setInstitutionId] = useState(1); // Get from auth context in real app
+
+  useEffect(() => {
+    const fetchParameters = async () => {
+      try {
+        const response = await getParametersForInstitution(institutionId);
+        // Transform API response to match your form structure
+        const paramData = {};
+        response.data.data.forEach((param: { name: string; value: number | string }) => {
+          // Map parameter names to form fields
+          // This mapping would depend on your actual parameter names
+          (paramData as Record<string, string>)[param.name.toLowerCase().replace(/ /g, '')] = param.value.toString();
+        });
+        setFormData(prevData => ({
+          ...prevData,
+          ...paramData as typeof prevData
+        }));
+      } catch (err) {
+        setError('Failed to load parameters');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchParameters();
+  }, [institutionId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // In a real application, this would save the parameters to the server
-    setIsEditing(false);
+    try {
+      // You would need to map form fields back to parameter IDs
+      // This is a simplified example
+      for (const [key, value] of Object.entries(formData)) {
+        // You would need to get the parameter ID for each key
+        // const paramId = getParameterIdByName(key);
+        // await updateInstitutionParameterValue(paramId, parseFloat(value));
+      }
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Error saving parameters:', err);
+    }
   };
   const handleReset = () => {
     // In a real application, this would reset to the last saved values
     setIsEditing(false);
   };
-  return <div className="max-w-7xl mx-auto">
+  return <Layout>
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -256,6 +301,6 @@ const ParametersConfig = () => {
           </Button>
         </div>
       </div>
-    </div>;
+    </Layout>;
 };
 export default ParametersConfig;

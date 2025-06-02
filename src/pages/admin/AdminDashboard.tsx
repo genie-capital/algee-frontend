@@ -15,7 +15,8 @@ import {
   FileText,
   Settings,
   List,
-  Shield
+  Shield,
+  Clipboard
 } from 'lucide-react';
 import Button from '../../components/common/Button';
 
@@ -339,15 +340,19 @@ const AdminDashboard = () => {
           </div>
           <div className="p-4">
             <nav className="space-y-1">
-              <a href="/admin/institution-approval" className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-[#008401]/10">
+            <a href="/admin/users" className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-[#008401]/10">
                 <Users className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#008401]" />
+                Users
+              </a>
+              <a href="/admin/institution" className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-[#008401]/10">
+                <Clipboard className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#008401]" />
                 Institution Management
               </a>
               <a href="/admin/variables" className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-[#008401]/10">
                 <List className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#008401]" />
                 Variable Configuration
               </a>
-              <a href="/admin/settings" className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-[#008401]/10">
+              <a href="/admin/system-settings" className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-[#008401]/10">
                 <Settings className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#008401]" />
                 System Settings
               </a>
@@ -355,11 +360,7 @@ const AdminDashboard = () => {
                 <FileText className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#008401]" />
                 Audit Logs
               </a>
-              <a href="/admin/support" className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-[#008401]/10">
-                <Shield className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#008401]" />
-                Support Tickets
-              </a>
-              <a href="/admin/maintenance" className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-[#008401]/10">
+              <a href="/admin/manage" className="group flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-[#008401]/10">
                 <Server className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#008401]" />
                 Maintenance Tools
               </a>

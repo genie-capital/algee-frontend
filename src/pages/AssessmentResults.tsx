@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SearchIcon, FilterIcon, DownloadIcon, EyeIcon } from 'lucide-react';
 import Button from '../components/common/Button';
+import Layout from '../components/Layout';
 const AssessmentResults = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   // Mock data for demonstration purposes
@@ -76,7 +77,7 @@ const AssessmentResults = () => {
     rate: '8.1%'
   }];
   const filteredResults = selectedStatus === 'all' ? results : results.filter(result => result.status === selectedStatus);
-  return <div className="max-w-7xl mx-auto">
+  return <Layout>
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -110,7 +111,13 @@ const AssessmentResults = () => {
                 </div>
                 <input type="text" className="focus:ring-[#008401] focus:border-[#008401] block w-full pl-10 sm:text-sm border-gray-300 rounded-md" placeholder="Search by reference" />
               </div>
-              <select className="block w-full sm:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#008401] focus:border-[#008401] sm:text-sm rounded-md" value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)}>
+              <select 
+                title="Filter by status"
+                aria-label="Filter assessments by status"
+                className="block w-full sm:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#008401] focus:border-[#008401] sm:text-sm rounded-md" 
+                value={selectedStatus} 
+                onChange={e => setSelectedStatus(e.target.value)}
+              >
                 <option value="all">All Statuses</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
@@ -233,6 +240,6 @@ const AssessmentResults = () => {
           </div>
         </div>
       </div>
-    </div>;
+    </Layout>;
 };
 export default AssessmentResults;
