@@ -3,7 +3,7 @@ import { UploadIcon, FileTextIcon, AlertCircleIcon, CheckCircleIcon } from 'luci
 import Button from '../components/common/Button';
 import Layout from '../components/Layout';
 const BatchAssessment = () => {
-  return <Layout>
+  return <>
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -66,7 +66,7 @@ const BatchAssessment = () => {
                 </div>
               </div>
             </div>
-            {/* This would conditionally show after a file is uploaded
+             {/* This would conditionally show after a file is uploaded */}
              <div className="bg-green-50 border-l-4 border-green-400 p-4">
              <div className="flex">
              <div className="flex-shrink-0">
@@ -79,12 +79,18 @@ const BatchAssessment = () => {
              </div>
              </div>
              </div>
-             */}
+            <div className="mt-6 flex items-center justify-between">
+              <div className="flex items-center">
+                <FileTextIcon className="h-5 w-5 text-[#07002F]" />
+                <span className="ml-2 text-sm text-gray-700">
+                  File Name:
+                </span>
+              </div>
             <div className="mt-6 flex justify-end">
               <Button variant="outline" className="mr-3" disabled>
                 Validate File
               </Button>
-              <Button disabled>Process Batch</Button>
+              <Button>Process Batch</Button>
             </div>
           </div>
         </div>
@@ -184,6 +190,7 @@ const BatchAssessment = () => {
           </table>
         </div>
       </div>
-    </Layout>;
+      </div>
+    </>;
 };
 export default BatchAssessment;

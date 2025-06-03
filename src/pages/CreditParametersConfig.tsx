@@ -228,6 +228,30 @@ const CreditParametersConfig = () => {
                   )}
                 </div>
 
+                {/*Currency Symbol */}
+                {/* <div className="sm:col-span-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Currency
+                      </label>
+                      <InfoIcon
+                        className="h-4 w-4 text-gray-400 cursor-help"
+                        aria-label="Base currency for all monetary values"
+                      />
+                    </div>
+                    <select
+                      aria-label="Currency selection"
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    >
+                      <option value="USD">United States Dollar (USD)</option>
+                      <option value="EUR">Euro (EUR)</option>
+                      <option value="GBP">British Pound (GBP)</option>
+                      <option value="KES">Kenyan Shilling (KES)</option>
+                    </select>
+                  </div> */}
+
                 {/* Income Multiplier */}
                 <div className="sm:col-span-1">
                   <div className="flex items-center justify-between">

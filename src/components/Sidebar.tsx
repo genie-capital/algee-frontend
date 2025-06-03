@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   HomeIcon, 
   UserIcon, 
@@ -12,10 +12,18 @@ import {
   XIcon 
 } from 'lucide-react';
 import Logo from './common/Logo';
+import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   const navigation = [
     {
@@ -25,7 +33,7 @@ const Sidebar = () => {
     },
     {
       name: 'Credit Parameters',
-      href: '/credit-parameters-config',
+      href: '/parameters',
       icon: SettingsIcon
     },
     // {
@@ -85,13 +93,13 @@ const Sidebar = () => {
         </div>
 
         <div className="p-4 border-t border-[#008401]/30">
-          <Link 
-            to="/" 
-            className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-[#008401]/10 hover:text-white"
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-[#008401]/10 hover:text-white"
           >
             <LogOutIcon className="mr-3 h-5 w-5 text-gray-400" />
             Logout
-          </Link>
+          </button>
         </div>
       </aside>
     </>

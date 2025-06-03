@@ -11,8 +11,7 @@ import {
   Settings
 } from 'lucide-react';
 import Button from '../components/common/Button';
-import Layout from '../components/Layout';
-// Remove Sidebar import as it's provided by Layout
+// Remove Layout import as it's provided by ProtectedRoute
 
 // Mock data for demonstration purposes
 const mockStats = {
@@ -31,8 +30,7 @@ const WorkspaceDashboard = () => {
   const [period, setPeriod] = useState('month');
 
   return (
-    // Remove the outer container div as Layout will provide it
-    <Layout>
+    <>
       {/* Page Title and Actions */}
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
@@ -144,7 +142,7 @@ const WorkspaceDashboard = () => {
           </div>
           <div className="bg-gray-50 px-5 py-3">
             <div className="text-sm">
-              <Link to="/credit-parameters-config" className="font-medium text-[#008401] hover:text-[#006401]">
+              <Link to="/parameters" className="font-medium text-[#008401] hover:text-[#006401]">
                 Adjust parameters
               </Link>
             </div>
@@ -199,7 +197,7 @@ const WorkspaceDashboard = () => {
               View Results
             </Button>
           </Link>
-          <Link to="/credit-parameters-config">
+          <Link to="/parameters">
             <Button variant="secondary" className="w-full flex justify-center items-center">
               <Settings className="h-5 w-5 mr-2" />
               Configure Parameters
@@ -260,7 +258,7 @@ const WorkspaceDashboard = () => {
           </Button>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 

@@ -75,9 +75,10 @@ const AssessmentResults = () => {
     status: 'approved',
     limit: '$12,000',
     rate: '8.1%'
-  }];
+  }
+];
   const filteredResults = selectedStatus === 'all' ? results : results.filter(result => result.status === selectedStatus);
-  return <Layout>
+  return <>
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -130,7 +131,7 @@ const AssessmentResults = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reference
+                  ID
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
@@ -240,6 +241,6 @@ const AssessmentResults = () => {
           </div>
         </div>
       </div>
-    </Layout>;
+    </>;
 };
 export default AssessmentResults;

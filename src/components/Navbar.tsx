@@ -20,16 +20,19 @@ const Navbar: React.FC<NavbarProps> = ({
       <div className="px-3 py-3 lg:px-5 lg:pl-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-start">
-            {/* <button 
+            <button
+              type="button"
+              onClick={() => document.getElementById('sidebar-menu')?.classList.toggle('hidden')}
               id="toggleSidebarMobile" 
               aria-expanded="true" 
-              aria-controls="sidebar" 
+              aria-label="Toggle navigation menu"
+              title="Toggle sidebar menu"
               className="lg:hidden mr-2 text-gray-600 hover:text-gray-900 cursor-pointer p-2 hover:bg-gray-100 focus:bg-gray-100 focus:ring-2 focus:ring-gray-100 rounded"
             >
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"></path>
               </svg>
-            </button> */}
+            </button>
             <div className="text-xl font-bold flex items-center lg:ml-2.5">
               <span className="self-center whitespace-nowrap text-[#07002F]">Credit Scoring System</span>
             </div>
