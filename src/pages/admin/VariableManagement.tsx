@@ -3,6 +3,9 @@ import { PlusIcon, EditIcon, TrashIcon, ToggleLeftIcon, ToggleRightIcon } from '
 import Button from '../../components/common/Button';
 import api from '../../services/api';
 import ParameterFormModal from '../../components/admin/ParameterFormModal';
+import AdminNavbar from '../../components/admin/AdminNavbar';
+import BackToDashboard from '../../components/admin/BackToDashboard';
+
 
 // Define interfaces for type safety
 interface Variable {
@@ -43,7 +46,7 @@ const VariableManagement = () => {
   const fetchParameters = async (): Promise<void> => {
     setLoading(true);
     try {
-      const response = await api.post<ApiResponse>('/parameter/all');
+      const response = await api.post<ApiResponse>('/api/parameter/all');
       if (response.data.success) {
         setVariables(response.data.data);
       } else {
@@ -59,7 +62,7 @@ const VariableManagement = () => {
 
   const handleCreateParameter = async (paramData: ParamData): Promise<void> => {
     try {
-      const response = await api.post('/parameter/create', {
+      const response = await api.post('/api/parameter/create', {
         name: paramData.name,
         description: paramData.description,
         isRequired: paramData.required,
@@ -80,7 +83,7 @@ const VariableManagement = () => {
 
   const handleUpdateParameter = async (id: string | number, paramData: ParamData): Promise<void> => {
     try {
-      const response = await api.post(`/parameter/update/${id}`, {
+      const response = await api.post(`/api/parameter/update/${id}`, {
         name: paramData.name,
         description: paramData.description,
         isRequired: paramData.required,
@@ -102,7 +105,7 @@ const VariableManagement = () => {
   const handleDeleteParameter = async (id: string | number): Promise<void> => {
     if (window.confirm('Are you sure you want to delete this parameter?')) {
       try {
-        const response = await api.post<ApiResponse>(`/parameter/delete/${id}`);
+        const response = await api.post<ApiResponse>(`/api/parameter/delete/${id}`);
         if (response.data.success) {
           fetchParameters(); // Refresh the list
         } else {
@@ -117,22 +120,25 @@ const VariableManagement = () => {
   
   return (
     <div className="max-w-7xl mx-auto">
+      <AdminNavbar />
+      <BackToDashboard />
       <div className="md:flex md:items-center md:justify-between mb-8">
-        <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-            Variable Management
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Manage credit assessment variables and their weights
-          </p>
+          
+          <div className="flex-1 min-w-0">
+            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+              Variable Management
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Manage credit assessment variables and their weights
+            </p>
+          </div>
+          <div className="mt-4 flex md:mt-0 md:ml-4">
+            <Button onClick={() => setShowCreateModal(true)}>
+              <PlusIcon className="h-4 w-4 mr-1" />
+              Add Variable
+            </Button>
+          </div>
         </div>
-        <div className="mt-4 flex md:mt-0 md:ml-4">
-          <Button onClick={() => setShowCreateModal(true)}>
-            <PlusIcon className="h-4 w-4 mr-1" />
-            Add Variable
-          </Button>
-        </div>
-      </div>
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -329,7 +335,7 @@ const VariableManagement = () => {
           onCancel={() => setShowEditModal(false)}
         />
       )}
-    </div>
+      </div>
   );
 };
 

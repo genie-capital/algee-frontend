@@ -2,16 +2,18 @@ import React, { useState } from 'react';
 import { SaveIcon } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import AdminNavbar from '../../components/admin/AdminNavbar';
+import BackToDashboard from '../../components/admin/BackToDashboard';
 const SystemSettings = () => {
   const [formData, setFormData] = useState({
-    systemName: 'Credit Scoring System',
-    adminEmail: 'admin@creditsystem.com',
-    defaultCurrency: 'USD',
+    systemName: 'ALGEE',
+    adminEmail: 'admin@algee.com',
+    defaultCurrency: 'XAF',
     dataRetentionDays: '365',
     enableNotifications: true,
     enableAuditLogging: true,
     enableBatchProcessing: true,
-    apiEndpoint: 'https://api.creditsystem.com/v1',
+    apiEndpoint: 'http://147.93.89.170:3000/',
     apiKey: '••••••••••••••••••••'
   });
   const [isEditing, setIsEditing] = useState(false);
@@ -36,6 +38,8 @@ const SystemSettings = () => {
     setIsEditing(false);
   };
   return <div className="max-w-7xl mx-auto">
+      <AdminNavbar />
+      <BackToDashboard />
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
@@ -86,7 +90,7 @@ const SystemSettings = () => {
                       <option value="USD">USD - US Dollar</option>
                       <option value="EUR">EUR - Euro</option>
                       <option value="GBP">GBP - British Pound</option>
-                      <option value="JPY">JPY - Japanese Yen</option>
+                      <option value="XAF">XAF - West African CFA Franc</option>
                       <option value="CAD">CAD - Canadian Dollar</option>
                       <option value="AUD">AUD - Australian Dollar</option>
                     </select>
@@ -157,13 +161,13 @@ const SystemSettings = () => {
           <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
             <div className="sm:col-span-1">
               <dt className="text-sm font-medium text-gray-500">Version</dt>
-              <dd className="mt-1 text-sm text-gray-900">2.5.3</dd>
+              <dd className="mt-1 text-sm text-gray-900">1.0.1</dd>
             </div>
             <div className="sm:col-span-1">
               <dt className="text-sm font-medium text-gray-500">
                 Last Updated
               </dt>
-              <dd className="mt-1 text-sm text-gray-900">October 15, 2023</dd>
+              <dd className="mt-1 text-sm text-gray-900">June 04, 2025</dd>
             </div>
             <div className="sm:col-span-1">
               <dt className="text-sm font-medium text-gray-500">

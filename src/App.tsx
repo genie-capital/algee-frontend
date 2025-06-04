@@ -12,7 +12,7 @@ import WorkspaceDashboard from './pages/WorkspaceDashboard';
 import CreditParametersConfig from './pages/CreditParametersConfig';
 import UserManagement from './pages/admin/UserManagement';
 import AuditLogs from './pages/admin/AuditLogs';
-// import ClientAssessment from './pages/ClientAssessment';
+import SystemSettings from './pages/admin/SystemSettings';
 import AssessmentResults from './pages/AssessmentResults';
 import BatchAssessment from './pages/BatchAssessment';
 import AdminManagement from './pages/admin/AdminManagement';
@@ -97,6 +97,11 @@ export function App() {
           <Route path="/admin/manage" element={
             <ProtectedRoute requireAdmin={true}>
               <AdminManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/settings" element={
+            <ProtectedRoute requireAdmin={true}>
+              <SystemSettings />
             </ProtectedRoute>
           } />
         </Routes>

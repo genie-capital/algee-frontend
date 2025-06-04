@@ -3,18 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 // Add to User type
-type User = {
+interface User {
   id: number;
   name: string;
   email: string;
   is_admin: boolean;
   is_active: boolean;
+  role: string;
+  permissions: string[];
+  profilePhoto?: string;
   institutionName?: string;
   institutionLogo?: string;
-  // Add additional user properties as needed
-  role?: string;
-  permissions?: string[];
-};
+}
 
 // Add to AuthContextType
 type AuthContextType = {
@@ -133,7 +133,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               is_admin: isAdmin,
               is_active: response.data.is_active || true,
               institutionName: isInstitution ? response.data.name : undefined,
-              institutionLogo: isInstitution ? response.data.logo : undefined
+              institutionLogo: isInstitution ? response.data.logo : undefined,
+              role: isAdmin ? 'admin' : 'institution_admin',
+              permissions: isAdmin ? ['all'] : ['manage_institution']
             });
           }
         } catch (profileError) {
@@ -226,7 +228,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           is_admin: isAdmin,
           is_active: response.data.is_active || true,
           institutionName: !isAdmin ? response.data.name : undefined,
-          institutionLogo: !isAdmin ? response.data.logo : undefined
+          institutionLogo: !isAdmin ? response.data.logo : undefined,
+          role: isAdmin ? 'admin' : 'institution_admin',
+          permissions: isAdmin ? ['all'] : ['manage_institution']
         });
         
         // Navigate based on user type
