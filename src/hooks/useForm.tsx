@@ -31,10 +31,22 @@ export const useForm = <T extends Record<string, any>>(
     
     const newValue = type === 'checkbox' ? checked : value;
     
-    setFormDataState(prev => ({
-      ...prev,
-      [name]: newValue
-    }));
+    // Handle nested fields (e.g., "address.street")
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormDataState(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: newValue
+        }
+      }));
+    } else {
+      setFormDataState(prev => ({
+        ...prev,
+        [name]: newValue
+      }));
+    }
     
     // Clear error when user types
     if (formErrors[name]) {
@@ -50,7 +62,7 @@ export const useForm = <T extends Record<string, any>>(
     if (!validationRules[fieldName as string]) return true;
     
     const fieldErrors = validateForm(
-      { [fieldName]: formData[fieldName] },
+      formData,
       { [fieldName as string]: validationRules[fieldName as string] }
     );
     

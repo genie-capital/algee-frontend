@@ -124,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Validate token with the server and get user profile
         try {
-          const response = await api.get(isAdmin ? '/admin/profile' : '/institution/profile');
+          const response = await api.get(isAdmin ? '/api/admin/update/{id}' : '/api/institution/update/{id}');
           if (response.data) {
             setUser({
               id: response.data.id,
@@ -201,40 +201,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
         
-        // If credentials don't match, show error
-        throw new Error('Invalid credentials');
+        // Invalid credentials
+        setError('Invalid email or password');
+        setLoading(false);
+        return;
       }
       
-      // Normal API login for production
-      const response = await api.post(
-        isAdmin ? '/admin/login' : '/institution/login', 
-        { email, password }
-      );
+      // Production mode - make API call
+      const response = await api.post(isAdmin ? '/api/admin/login' : '/api/institution/login', {
+        email,
+        password
+      });
       
       if (response.data.token) {
+        // Store token and authentication flags
         sessionStorage.setItem('token', response.data.token);
         sessionStorage.setItem(isAdmin ? 'adminAuthenticated' : 'userLoggedIn', 'true');
         
         // Set user data
         setUser({
-          id: response.data.id || 1,
-          name: response.data.name || (isAdmin ? 'Admin' : 'Institution User'),
-          email: email,
+          id: response.data.id,
+          name: response.data.name,
+          email: response.data.email,
           is_admin: isAdmin,
-          is_active: true,
+          is_active: response.data.is_active || true,
           institutionName: !isAdmin ? response.data.name : undefined,
           institutionLogo: !isAdmin ? response.data.logo : undefined
         });
         
-        // Navigate to appropriate dashboard
+        // Navigate based on user type
         navigate(isAdmin ? '/admin/dashboard' : '/workspace-dashboard');
-      } else {
-        throw new Error('No token received from server');
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Login failed. Please try again.';
-      setError(errorMessage);
-      throw err; // Re-throw to allow handling in components
+      setError(err.response?.data?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -272,7 +271,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       // Normal API call for production
-      await api.post('/institution/register', institutionData);
+      await api.post('/api/institution/create', institutionData);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
       setError(errorMessage);

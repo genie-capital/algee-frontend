@@ -1,81 +1,79 @@
 export type ValidationRule = {
-    test: (value: any, allValues?: Record<string, any>) => boolean;
-    message: string;
-  };
-  
-  export type ValidationRules = {
-    [key: string]: ValidationRule[];
-  };
-  
-  export type ValidationErrors = {
-    [key: string]: string;
-  };
-  
-  export const validateForm = (values: Record<string, any>, rules: ValidationRules): ValidationErrors => {
-    const errors: ValidationErrors = {};
-  
-    Object.entries(rules).forEach(([field, fieldRules]) => {
-      // Get the value to validate
-      const value = values[field];
-  
-      // Apply each rule until one fails
-      for (const rule of fieldRules) {
-        if (!rule.test(value, values)) {
-          errors[field] = rule.message;
-          break;
-        }
+  validate: (value: any, formData?: any) => string;
+};
+
+export type ValidationRules = {
+  [key: string]: ValidationRule[];
+};
+
+export type ValidationErrors = {
+  [key: string]: string;
+};
+
+// Helper function to get nested object values
+const getNestedValue = (obj: any, path: string): any => {
+  return path.split('.').reduce((current, key) => current?.[key], obj);
+};
+
+export const validateForm = (data: Record<string, any>, rules: ValidationRules): ValidationErrors => {
+  const errors: ValidationErrors = {};
+
+  Object.keys(rules).forEach(fieldName => {
+    const value = fieldName.includes('.') 
+      ? fieldName.split('.').reduce((obj, key) => obj?.[key], data)
+      : data[fieldName];
+    
+    const fieldRules = rules[fieldName];
+    
+    for (const rule of fieldRules) {
+      const validationResult = rule.validate(value, data);
+      if (validationResult) {
+        errors[fieldName] = validationResult;
+        break;
       }
-    });
-  
-    return errors;
-  };
-  
-  // Common validation rules
-  export const required = (message = 'This field is required'): ValidationRule => ({
-    test: (value) => {
-      if (value === undefined || value === null) return false;
-      if (typeof value === 'string') return value.trim().length > 0;
-      return true;
-    },
-    message
+    }
   });
-  
-  export const email = (message = 'Please enter a valid email address'): ValidationRule => ({
-    test: (value) => {
-      if (!value) return true; // Let required handle empty values
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-    },
-    message
-  });
-  
-  export const minLength = (length: number, message = `Must be at least ${length} characters`): ValidationRule => ({
-    test: (value) => {
-      if (!value) return true; // Let required handle empty values
-      return value.length >= length;
-    },
-    message
-  });
-  
-  export const maxLength = (length: number, message = `Must be no more than ${length} characters`): ValidationRule => ({
-    test: (value) => {
-      if (!value) return true; // Let required handle empty values
-      return value.length <= length;
-    },
-    message
-  });
-  
-  export const matches = (pattern: RegExp, message = 'Invalid format'): ValidationRule => ({
-    test: (value) => {
-      if (!value) return true; // Let required handle empty values
-      return pattern.test(value);
-    },
-    message
-  });
-  
-  export const passwordsMatch = (passwordField: string, message = 'Passwords do not match'): ValidationRule => ({
-    test: (value, allValues) => {
-      if (!value) return true; // Let required handle empty values
-      return value === allValues?.[passwordField];
-    },
-    message
-  });
+
+  return errors;
+};
+
+// Common validation rules
+export const required = (message: string): ValidationRule => ({
+  validate: (value: any) => (!value ? message : '')
+});
+
+export const email = (): ValidationRule => ({
+  validate: (value: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return !value || emailRegex.test(value) ? '' : 'Please enter a valid email address';
+  }
+});
+
+export const minLength = (length: number, message: string): ValidationRule => ({
+  validate: (value: string) => (!value || value.length >= length ? '' : message)
+});
+
+export const maxLength = (length: number, message = `Must be no more than ${length} characters`): ValidationRule => ({
+  validate: (value: string) => (!value || value.length <= length ? '' : message)
+});
+
+export const matches = (pattern: RegExp, message: string): ValidationRule => ({
+  validate: (value: string) => (!value || pattern.test(value) ? '' : message)
+});
+
+export const passwordsMatch = (passwordField: string, message: string): ValidationRule => ({
+  validate: (value: string, formData: any) => {
+    if (!value || !formData) return '';
+    
+    // Handle both nested and flat object structures
+    const passwordValue = passwordField.includes('.') 
+      ? getNestedValue(formData, passwordField)
+      : formData[passwordField];
+    
+    return value === passwordValue ? '' : message;
+  }
+});
+
+export const customValidation = (validator: (value: any, formData?: any) => string): ValidationRule => ({
+  validate: validator
+});

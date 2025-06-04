@@ -1,13 +1,13 @@
 import api from './api';
 
 export const getAllInstitutions = async () => {
-  return await api.post('/institution/getAllInstitutions');
+  return await api.post('/api/institution/getAllInstitutions');
 };
 
 export const updateInstitution = async (id: string, data: any) => {
-  return await api.post(`/institution/update/${id}`, data);
+  return await api.post(`/api/institution/update/${id}`, data);
 };
 
 export const deactivateInstitution = async (id: string) => {
-  return await api.post(`/institution/deactivate/${id}`);
+  return await api.post(`/api/institution/deactivate/${id}`);
 };
