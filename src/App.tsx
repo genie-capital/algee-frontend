@@ -19,6 +19,7 @@ import AdminManagement from './pages/admin/AdminManagement';
 import InstitutionParameterDetail from './pages/InstitutionParameterDetail';
 import ParametersConfig from './pages/ParametersConfig';
 import ProtectedRoute from './components/ProtectedRoute';
+import BatchAssessmentDetails from './pages/BatchAssessmentDetails';
 
 export function App() {
   return (
@@ -41,12 +42,17 @@ export function App() {
             <ProtectedRoute>
               <CreditParametersConfig />
             </ProtectedRoute>
-          } />
-          {/* <Route path="/client-assessment" element={
+          } /> 
+           
+          {/* Don't forget to ad the ID to the unique batches "/${batchId}" 
+              Also adjust it in batch assessment and assessment results */}
+          <Route path="/batchdetails" element={
             <ProtectedRoute>
-              <ClientAssessment />
+              <BatchAssessmentDetails />
             </ProtectedRoute>
-          } /> */}
+          } />
+
+
           <Route path="/batch-assessment" element={
             <ProtectedRoute>
               <BatchAssessment />
