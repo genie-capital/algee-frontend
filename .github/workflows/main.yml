@@ -32,7 +32,7 @@ jobs:
           VITE_API_URL: https//api.algee.co
 
       - name: Deploy to server
-        uses: appleboy/ssh-action@1.0.3
+        uses: appleboy/ssh-action@v0.1.10
         with: 
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
@@ -47,7 +47,7 @@ jobs:
             sudo mkdir -p /var/www/html/algee-frontend-temp
        
       - name: Copy build files to server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v0.1.6
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }} 
@@ -58,7 +58,7 @@ jobs:
           strip_components: 1
         
       - name: Finalize deployment
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
@@ -84,7 +84,7 @@ jobs:
             echo "Deployment completed successfully!"
             
       - name: Verify deployment
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
