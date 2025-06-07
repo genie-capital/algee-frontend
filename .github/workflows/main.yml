@@ -70,7 +70,7 @@ jobs:
           script: |
             # Move new files to production directory
             sudo rm -rf /var/www/html/algee-frontend/*
-            sudo mv /var/www/html/algee-frontend-temp/dist/* /var/www/html/algee-frontend/
+            sudo mv /var/www/html/algee-frontend-temp/* /var/www/html/algee-frontend/
             sudo rm -rf /var/www/html/algee-frontend-temp
             
             # Set proper ownership and permissions
