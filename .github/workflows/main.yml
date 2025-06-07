@@ -1,0 +1,104 @@
+name: Deploy Algee Frontend to Ubuntu Server
+
+on: 
+  push: 
+    branches: 
+      - main 
+  pull_request:
+    branches:
+      - main
+
+jobs: 
+  deploy: 
+    runs-on: ubuntu-latest
+
+
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with: 
+          node-version: '23'
+          cache: 'npm'
+
+      - name: Install dependencies 
+        run: npm ci
+
+      - name: Build Frontend
+        run: npm run build 
+        env: 
+          VITE_API_URL: https//api.algee.co
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@1.0.3
+        with: 
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            # Create backup of current deployment
+            if [ -d "/var/www/html/algee-frontend" ]; then
+            sudo cp -r /var/www/html/algee-frontend /var/www/html/algee-frontend-backup-$(date +%Y%m%d-%H%M%S)
+            fi
+
+            sudo mkdir -p /var/www/html/algee-frontend-temp
+       
+      - name: Copy build files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }} 
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "dist/*"
+          target: "/var/www/html/algee-frontend-temp/"
+          strip_components: 1
+        
+      - name: Finalize deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            # Move new files to production directory
+            sudo rm -rf /var/www/html/algee-frontend/*
+            sudo mv /var/www/html/algee-frontend-temp/dist/* /var/www/html/algee-frontend/
+            sudo rm -rf /var/www/html/algee-frontend-temp
+            
+            # Set proper ownership and permissions
+            sudo chown -R root:root /var/www/html/algee-frontend
+            sudo chmod -R 755 /var/www/html/algee-frontend
+            
+            # Reload Apache to ensure any changes take effect
+            sudo systemctl reload apache2
+            
+            # Clean up old backups (keep only last 5)
+            cd /var/www/html
+            sudo ls -t algee-frontend-backup-* 2>/dev/null | tail -n +6 | xargs -r sudo rm -rf
+            
+            echo "Deployment completed successfully!"
+            
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            # Check if index.html exists
+            if [ -f "/var/www/html/algee-frontend/index.html" ]; then
+              echo "✅ index.html found"
+              ls -la /var/www/html/algee-frontend/
+            else
+              echo "❌ index.html not found"
+              exit 1
+            fi
+
+          
+            
