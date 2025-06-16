@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Loader2, FileText, BarChart3, Printer, Info, ArrowRight } from 'lucide-react';
-import Button from './common/Button';
+import React, { useState, useEffect } from 'react';
+import { FileText, BarChart3, Loader2, Printer, CheckCircle2, InfoIcon } from 'lucide-react';
 
 interface ProcessingModalProps {
   isOpen: boolean;
-  progress: number;
   onClose: () => void;
   onViewResults: () => void;
+  totalClients: number;
+  processedClients: number;
+  failedClients: number;
+  isComplete: boolean;
+  error?: string;
 }
 
 const funFacts = [
@@ -22,7 +25,16 @@ const funFacts = [
   "ALGEE's batch processing capability allows financial institutions to efficiently evaluate large volumes of credit applications.",
 ];
 
-const ProcessingModal: React.FC<ProcessingModalProps> = ({ isOpen, progress, onClose, onViewResults }) => {
+const ProcessingModal: React.FC<ProcessingModalProps> = ({
+  isOpen,
+  onClose,
+  onViewResults,
+  totalClients,
+  processedClients,
+  failedClients,
+  isComplete,
+  error
+}) => {
   const [currentFact, setCurrentFact] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   const [shuffledFacts, setShuffledFacts] = useState<string[]>([]);
@@ -35,7 +47,10 @@ const ProcessingModal: React.FC<ProcessingModalProps> = ({ isOpen, progress, onC
     { icon: CheckCircle2, label: 'Completed', description: 'All done!' },
   ];
 
-  // Separate effect for initializing facts when modal opens
+  // Calculate progress percentage
+  const progress = totalClients > 0 ? (processedClients / totalClients) * 100 : 0;
+
+  // Initialize facts when modal opens
   useEffect(() => {
     if (isOpen) {
       const shuffled = [...funFacts].sort(() => Math.random() - 0.5);
@@ -44,18 +59,18 @@ const ProcessingModal: React.FC<ProcessingModalProps> = ({ isOpen, progress, onC
     }
   }, [isOpen]);
 
-  // Separate effect for fact rotation interval
+  // Rotate facts
   useEffect(() => {
     if (!isOpen || shuffledFacts.length === 0) return;
 
     const factInterval = setInterval(() => {
       setCurrentFact((prev) => (prev + 1) % shuffledFacts.length);
-    }, 6000); // 6 seconds
+    }, 6000);
 
     return () => clearInterval(factInterval);
   }, [isOpen, shuffledFacts.length]);
 
-  // Separate effect for updating current step based on progress
+  // Update current step based on progress
   useEffect(() => {
     const stepProgress = Math.floor((progress / 100) * (steps.length - 1));
     setCurrentStep(stepProgress);
@@ -63,127 +78,124 @@ const ProcessingModal: React.FC<ProcessingModalProps> = ({ isOpen, progress, onC
 
   if (!isOpen) return null;
 
-  const isComplete = progress === 100;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-[1000px] overflow-hidden shadow-xl transform transition-all">
-        {/* Fun Facts Section */}
-        <div className="bg-[#07002F] text-white p-8 relative h-[200px]">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#07002F] to-[#07002F]/90" />
-          <div className="relative z-10">
-            <div className="flex items-center mb-4">
-              <Info className="h-6 w-6 mr-2" />
-              <h3 className="text-xl font-semibold">About ALGEE</h3>
-            </div>
-            <div className="h-[100px] overflow-hidden relative">
-              <div
-                className="absolute w-full transition-all duration-700 ease-in-out"
-                style={{
-                  transform: `translateY(-${currentFact * 100}px)`,
-                }}
-              >
-                {shuffledFacts.map((fact, index) => (
-                  <div
-                    key={index}
-                    className="h-[100px] flex items-center"
-                  >
-                    <p className="text-lg leading-relaxed">
-                      {fact}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+    <div className="fixed inset-0 bg-black w-1200 bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Processing Credit Assessments
+          </h2>
+          <p className="text-gray-600">
+            Please wait while we process {totalClients} client records
+          </p>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-8">
+          <div
+            className="bg-[#008401] h-2.5 rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          ></div>
+        </div>
+
+        {/* Progress Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="text-center">
+            <p className="text-sm text-gray-500">Total Records</p>
+            <p className="text-xl font-semibold">{totalClients}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500">Processed</p>
+            <p className="text-xl font-semibold text-[#008401]">{processedClients}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500">Failed</p>
+            <p className="text-xl font-semibold text-red-600">{failedClients}</p>
           </div>
         </div>
 
-        {/* Processing Steps Section */}
-        <div className="p-8">
-          <div className="space-y-6">
-            {steps.map((step, index) => {
-              const Icon = step.icon;
-              const isActive = index === currentStep;
-              const isCompleted = index < currentStep;
-              
-              return (
+        {/* Processing Steps */}
+        <div className="space-y-4 mb-8">
+          {steps.map((step, index) => {
+            const Icon = step.icon;
+            const isActive = index === currentStep;
+            const isCompleted = index < currentStep;
+
+            return (
+              <div
+                key={step.label}
+                className={`flex items-center p-4 rounded-lg ${
+                  isActive ? 'bg-[#008401] bg-opacity-10' : ''
+                }`}
+              >
                 <div
-                  key={index}
-                  className={`flex items-center space-x-4 transition-all duration-300 ${
-                    isActive ? 'scale-105' : ''
+                  className={`w-8 h-8 rounded-full flex items-center justify-center mr-4 ${
+                    isCompleted
+                      ? 'bg-[#008401] text-white'
+                      : isActive
+                      ? 'bg-[#008401] text-white animate-pulse'
+                      : 'bg-gray-200 text-gray-400'
                   }`}
                 >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      isCompleted
-                        ? 'bg-green-100 text-green-600'
-                        : isActive
-                        ? 'bg-[#008401] text-white animate-pulse'
-                        : 'bg-gray-100 text-gray-400'
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div>
+                  <p
+                    className={`font-medium ${
+                      isActive ? 'text-[#008401]' : 'text-gray-900'
                     }`}
                   >
-                    {isCompleted ? (
-                      <CheckCircle2 className="h-6 w-6" />
-                    ) : (
-                      <Icon className="h-6 w-6" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h4
-                      className={`font-medium ${
-                        isActive ? 'text-[#07002F]' : 'text-gray-500'
-                      }`}
-                    >
-                      {step.label}
-                    </h4>
-                    <p className="text-sm text-gray-500">{step.description}</p>
-                  </div>
-                  {isActive && !isComplete && (
-                    <div className="w-24">
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#008401] rounded-full transition-all duration-300"
-                          style={{
-                            width: `${((progress % 25) / 25) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
+                    {step.label}
+                  </p>
+                  <p className="text-sm text-gray-500">{step.description}</p>
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Fun Fact */}
+        <div className="bg-gray-50 rounded-lg p-4 mb-8">
+          <div className="flex items-start">
+            <InfoIcon className="w-5 h-5 text-[#008401] mt-1 mr-3" />
+            <p className="text-gray-600">{shuffledFacts[currentFact]}</p>
           </div>
+        </div>
 
-          {/* Overall Progress Bar */}
-          {!isComplete && (
-            <div className="mt-8">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>Overall Progress</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#008401] rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* View Results Button */}
-          {isComplete && (
-            <div className="mt-8 flex justify-center">
-              <Button
-                onClick={onViewResults}
-                className="flex items-center space-x-2"
+        {/* Action Buttons */}
+        <div className="flex justify-end space-x-4">
+          {isComplete ? (
+            <>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
-                <span>View Batch Results</span>
-                <ArrowRight className="h-5 w-5" />
-              </Button>
-            </div>
+                Close
+              </button>
+              <button
+                onClick={onViewResults}
+                className="px-4 py-2 bg-[#008401] text-white rounded hover:bg-[#006401]"
+              >
+                View Results
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              disabled={!error}
+            >
+              {error ? 'Close' : 'Processing...'}
+            </button>
           )}
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );

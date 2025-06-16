@@ -1,9 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UploadIcon, FileTextIcon, AlertCircleIcon, CheckCircleIcon, Loader2Icon } from 'lucide-react';
 import Button from '../components/common/Button';
 import Layout from '../components/Layout';
 import ProcessingModal from '../components/ProcessingModal';
+import { csvUploadService, UploadBatch } from '../services/csvUploadService';
+import { creditScoringService } from '../services/creditScoringService';
 
 interface BatchJob {
   id: string;
@@ -19,15 +21,35 @@ const BatchAssessment = () => {
   const [isValidating, setIsValidating] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationComplete, setValidationComplete] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [batchJobs, setBatchJobs] = useState<BatchJob[]>([]);
+  const [batchJobs, setBatchJobs] = useState<UploadBatch[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchBatches();
+  }, []);
+
+  const fetchBatches = async () => {
+    try {
+      const response = await csvUploadService.getUploadBatches({
+        page: 1,
+        limit: 10
+      });
+      if (response.success) {
+        setBatchJobs(response.data.batches);
+      }
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+    }
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       setValidationComplete(false);
+      setValidationError(null);
     }
   };
 
@@ -41,6 +63,7 @@ const BatchAssessment = () => {
     if (file) {
       setSelectedFile(file);
       setValidationComplete(false);
+      setValidationError(null);
     }
   };
 
@@ -48,19 +71,29 @@ const BatchAssessment = () => {
     if (!selectedFile) return;
 
     setIsValidating(true);
-    // Simulate validation process
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const isValid = selectedFile.type === 'text/csv' || 
-                   selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-                   selectedFile.type === 'application/vnd.ms-excel';
+    setValidationError(null);
 
-    if (isValid) {
-      setValidationComplete(true);
-    } else {
-      alert('Invalid file type. Please upload a CSV or Excel file.');
+    try {
+      // Simulate validation process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const isValid = selectedFile.type === 'text/csv' || 
+                     selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                     selectedFile.type === 'application/vnd.ms-excel';
+
+      if (isValid) {
+        setValidationComplete(true);
+        setValidationError(null);
+      } else {
+        setValidationError('Invalid file type. Please upload a CSV or Excel file.');
+        setValidationComplete(false);
+      }
+    } catch (error) {
+      setValidationError('Error validating file. Please try again.');
+      setValidationComplete(false);
+    } finally {
+      setIsValidating(false);
     }
-    setIsValidating(false);
   };
 
   const processBatch = async () => {
@@ -69,26 +102,65 @@ const BatchAssessment = () => {
     setIsProcessing(true);
     setProgress(0);
 
-    // Simulate processing with progress updates
-    for (let i = 0; i <= 100; i += 1) {
-      await new Promise(resolve => setTimeout(resolve, 240));
-      setProgress(i);
+    try {
+      const response = await csvUploadService.uploadCSV(
+        selectedFile,
+        selectedFile.name,
+        'Batch upload'
+      );
+
+      if (response.success) {
+        const newBatch: UploadBatch = {
+          id: response.data.uploadBatchId,
+          filename: response.data.fileInfo.originalName,
+          status: 'completed',
+          total_records: response.data.processing.totalRecords,
+          processed_records: response.data.processing.successfulRecords,
+          failed_records: response.data.processing.failedRecords,
+          createdAt: new Date().toISOString()
+        };
+
+        // Call credit scoring service for the batch
+        const creditScoringResponse = await creditScoringService.calculateBatchResults(
+          [response.data.processing.successfulRecords],
+          response.data.uploadBatchId
+        );
+
+        if (!creditScoringResponse.success) {
+          throw new Error('Failed to calculate credit scores');
+        }
+
+        setBatchJobs(prev => [newBatch, ...prev]);
+        setProgress(100);
+      } else {
+        setValidationError(response.message || 'Error processing batch');
+      }
+    } catch (error) {
+      setValidationError('Error processing batch. Please try again.');
+    } finally {
+      setIsProcessing(false);
+      setProgress(0);
     }
-
-    // Add the new batch job to the list
-    const newBatchJob: BatchJob = {
-      id: `BATCH-${Date.now()}`,
-      fileName: selectedFile.name,
-      dateSubmitted: new Date(),
-      recordCount: Math.floor(Math.random() * 300) + 50, // Simulated record count
-      status: 'completed'
-    };
-
-    setBatchJobs(prev => [newBatchJob, ...prev]);
   };
 
-  const handleViewResults = (batchId: string) => {
-    navigate(`/batchdetails`);
+  const handleViewResults = (batchId: number) => {
+    navigate(`/batch/${batchId}`);
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await csvUploadService.downloadCSVTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'client_assessment_template.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading template:', error);
+    }
   };
 
   return (
@@ -144,7 +216,7 @@ const BatchAssessment = () => {
                     Need a template?
                   </span>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
                   Download Template
                 </Button>
               </div>
@@ -170,7 +242,22 @@ const BatchAssessment = () => {
               </div>
             )}
 
-            {validationComplete && (
+            {validationError && (
+              <div className="bg-red-50 border-l-4 border-red-400 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <AlertCircleIcon className="h-5 w-5 text-red-400" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">
+                      {validationError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {validationComplete && !validationError && (
               <div className="bg-green-50 border-l-4 border-green-400 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -211,7 +298,7 @@ const BatchAssessment = () => {
                   )}
                 </Button>
               )}
-              {validationComplete && (
+              {validationComplete && !validationError && (
                 <Button 
                   onClick={processBatch}
                   disabled={isProcessing}
@@ -261,13 +348,13 @@ const BatchAssessment = () => {
               {batchJobs.map((job) => (
                 <tr key={job.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#07002F]">
-                    {job.fileName}
+                    {job.filename}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {job.dateSubmitted.toLocaleString()}
+                    {new Date(job.createdAt).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {job.recordCount}
+                    {job.total_records}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -299,9 +386,13 @@ const BatchAssessment = () => {
       {isProcessing && (
         <ProcessingModal
           isOpen={isProcessing}
-          progress={progress}
+          totalClients={100}
+          processedClients={progress}
+          failedClients={0}
+          isComplete={progress === 100}
+          error={undefined}
           onClose={() => setIsProcessing(false)}
-          onViewResults={() => handleViewResults('')}
+          onViewResults={() => handleViewResults(0)}
         />
       )}
     </>

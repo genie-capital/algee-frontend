@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusIcon, EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import Button from '../../components/common/Button';
 import AdminNavbar from '../../components/admin/AdminNavbar';
 import BackToDashboard from '../../components/admin/BackToDashboard';
+import axios from 'axios';
 
 interface Institution {
   id: string;
@@ -32,92 +33,8 @@ interface Institution {
   };
 }
 
-const mockInstitutions: Institution[] = [
-  {
-    id: '1',
-    name: 'First National Bank',
-    email: 'contact@fnb.com',
-    institution: 'First National Bank',
-    role: 'Institution Admin',
-    status: 'active',
-    registrationNumber: 'FNB-2024-001',
-    institutionType: 'bank',
-    authorizationNumber: 'AUTH-2024-001',
-    address: {
-      street: '123 Financial District',
-      city: 'New York',
-      state: 'New York',
-      country: 'United States'
-    },
-    phoneNumber: '+1 234 567 8900',
-    website: 'www.fnb.com',
-    registrationDate: '2024-01-15',
-    adminInfo: {
-      firstName: 'John',
-      lastName: 'Smith',
-      jobTitle: 'Chief Financial Officer',
-      email: 'john.smith@fnb.com',
-      directPhone: '+1 234 567 8901'
-    }
-  },
-  {
-    id: '2',
-    name: 'Community Credit Union',
-    email: 'info@ccu.org',
-    institution: 'Community Credit Union',
-    role: 'Institution Admin',
-    status: 'inactive',
-    registrationNumber: 'CCU-2024-002',
-    institutionType: 'credit_union',
-    authorizationNumber: 'AUTH-2024-002',
-    address: {
-      street: '456 Main Street',
-      city: 'Chicago',
-      state: 'Illinois',
-      country: 'United States'
-    },
-    phoneNumber: '+1 234 567 8902',
-    website: 'www.ccu.org',
-    registrationDate: '2024-02-01',
-    adminInfo: {
-      firstName: 'Sarah',
-      lastName: 'Johnson',
-      jobTitle: 'Operations Director',
-      email: 'sarah.johnson@ccu.org',
-      directPhone: '+1 234 567 8903'
-    }
-  },
-  {
-    id: '3',
-    name: 'MicroFinance Solutions',
-    email: 'contact@mfs.com',
-    institution: 'MicroFinance Solutions',
-    role: 'Institution Admin',
-    status: 'active',
-    registrationNumber: 'MFS-2024-003',
-    institutionType: 'microfinance',
-    authorizationNumber: 'AUTH-2024-003',
-    address: {
-      street: '789 Business Park',
-      city: 'Buea',
-      state: 'South-West',
-      country: 'Cameroon'
-    },
-    phoneNumber: '+1 234 567 8904',
-    website: 'www.mfs.com',
-    registrationDate: '2024-03-01',
-    adminInfo: {
-      firstName: 'Michael',
-      lastName: 'Chen',
-      jobTitle: 'Managing Director',
-      email: 'michael.chen@mfs.com',
-      directPhone: '+1 234 567 8905'
-    }
-  }
-];
-
 const UserManagement = () => {
-  const [institutions, setInstitutions] = useState<Institution[]>(mockInstitutions);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -125,10 +42,86 @@ const UserManagement = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [selectedDateRange, setSelectedDateRange] = useState<string>('all');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleToggleStatus = (id: string, currentStatus: string) => {
+  useEffect(() => {
+    fetchInstitutions();
+  }, []);
+
+  const fetchInstitutions = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/institution/getAllInstitutions', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.data.success) {
+        // Transform the API response to match our Institution interface
+        const transformedInstitutions = response.data.data.map((inst: any) => ({
+          id: inst.id.toString(),
+          name: inst.name,
+          email: inst.email,
+          institution: inst.name,
+          role: 'Institution Admin',
+          status: inst.is_active ? 'active' : 'inactive',
+          registrationNumber: `REG-${inst.id}`,
+          institutionType: 'bank', // Default value, update based on your needs
+          authorizationNumber: `AUTH-${inst.id}`,
+          address: {
+            street: 'N/A',
+            city: 'N/A',
+            state: 'N/A',
+            country: 'N/A'
+          },
+          phoneNumber: 'N/A',
+          website: 'N/A',
+          registrationDate: new Date(inst.createdAt).toISOString().split('T')[0],
+          adminInfo: {
+            firstName: 'N/A',
+            lastName: 'N/A',
+            jobTitle: 'N/A',
+            email: inst.email,
+            directPhone: 'N/A'
+          }
+        }));
+        setInstitutions(transformedInstitutions);
+      } else {
+        setError('Failed to fetch institutions');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch institutions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      
+      if (newStatus === 'inactive') {
+        // Call deactivate endpoint
+        await axios.post(`/api/institution/deactivate/${id}`, {}, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+      } else {
+        // Call update endpoint to reactivate
+        await axios.put(`/api/institution/update/${id}`, {
+          email: institutions.find(inst => inst.id === id)?.email,
+          password: 'dummyPassword', // You might want to handle this differently
+          is_active: true
+        }, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+      }
+
+      // Update local state
       setInstitutions(prevInstitutions => 
         prevInstitutions.map(institution => 
           institution.id === id 
@@ -137,7 +130,7 @@ const UserManagement = () => {
         )
       );
     } catch (err: any) {
-      setError('Failed to update institution status');
+      setError(err.response?.data?.message || 'Failed to update institution status');
     }
   };
 
@@ -278,10 +271,22 @@ const UserManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {error ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                    Loading institutions...
+                  </td>
+                </tr>
+              ) : error ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-4 text-center text-sm text-red-500">
                     {error}
+                  </td>
+                </tr>
+              ) : filteredInstitutions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                    No institutions found
                   </td>
                 </tr>
               ) : (

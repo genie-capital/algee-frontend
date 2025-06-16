@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InfoIcon, HistoryIcon, RefreshCcwIcon, SaveIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Layout from '../components/Layout';
+import creditParametersService, { InstitutionParameter, CreditParameter } from '../services/creditParametersService';
+import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ParameterInfo {
   name: string;
@@ -13,58 +16,63 @@ interface ParameterInfo {
 }
 
 const CreditParametersConfig = () => {
-  const [formData, setFormData] = useState({
-    maxRiskyLoanAmount: '25000',
-    minRiskyLoanAmount: '5000',
-    incomeMultiplier: '3.5',
-    minInterestRate: '4.5',
-    maxInterestRate: '15.0',
-    verifiedMonthlyIncomeThreshold: '3000'
-  });
-
+  const { user, isAuthenticated } = useAuth();
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [parameters, setParameters] = useState<InstitutionParameter[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('October 15, 2023 14:30:25');
   const [selectedParameter, setSelectedParameter] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const parameterInfo: Record<string, ParameterInfo> = {
-    maxRiskyLoanAmount: {
-      name: 'Maximum Loan Amount',
-      description: 'The maximum amount that can be loaned to a client with a risky profile. Loans above this amount will require additional approval.',
-      recommendedRange: '$20,000 - $50,000',
-      impact: 'Higher values increase potential exposure to default risk but may increase business volume.'
-    },
-    minRiskyLoanAmount: {
-      name: 'Minimum Loan Amount',
-      description: 'The minimum amount that can be loaned to a client with a risky profile. Loans below this amount may not be profitable.',
-      recommendedRange: '$3,000 - $10,000',
-      impact: 'Lower values may increase client base but could reduce profitability per loan.'
-    },
-    incomeMultiplier: {
-      name: 'Income Multiplier',
-      description: 'The factor by which a client\'s income is multiplied to determine maximum loan eligibility.',
-      recommendedRange: '2.5 - 4.0',
-      impact: 'Higher values allow larger loans relative to income, increasing both opportunity and risk.'
-    },
-    minInterestRate: {
-      name: 'Minimum Interest Rate',
-      description: 'The lowest interest rate that can be offered to any client, regardless of credit score.',
-      recommendedRange: '3.0% - 5.0%',
-      impact: 'Lower rates may attract more clients but will reduce profit margins.'
-    },
-    maxInterestRate: {
-      name: 'Maximum Interest Rate',
-      description: 'The highest interest rate that can be charged to clients with the lowest credit scores.',
-      recommendedRange: '12.0% - 18.0%',
-      impact: 'Higher rates increase profitability for risky loans but may reduce application volume.'
-    },
-    verifiedMonthlyIncomeThreshold: {
-      name: 'Verified Monthly Income Threshold',
-      description: 'The minimum monthly income required for a client to be eligible for standard loan processing.',
-      recommendedRange: '$2,500 - $4,000',
-      impact: 'Higher thresholds reduce risk but may exclude potential clients.'
-    }
-  };
+  // Fetch available parameters and their values
+  useEffect(() => {
+    const fetchParameters = async () => {
+      if (!isAuthenticated || !user?.institutionId) {
+        toast.error('Authentication required');
+        navigate('/');
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        
+        // Fetch all available parameters
+        const parametersResponse = await creditParametersService.getAllInstitutionParameters();
+        if (parametersResponse.success) {
+          setParameters(parametersResponse.data.filter(param => param.isActive));
+        }
+
+        // Fetch current parameter values
+        const valuesResponse = await creditParametersService.getInstitutionParameters(user.institutionId);
+        
+        if (valuesResponse.success && valuesResponse.data) {
+          // Map API response to form data
+          const newFormData: Record<string, string> = {};
+          valuesResponse.data.forEach(param => {
+            const parameter = parametersResponse.data.find(p => p.id === param.parameterId);
+            if (parameter) {
+              newFormData[parameter.uniqueCode] = param.value.toString();
+            }
+          });
+          setFormData(newFormData);
+          
+          // Get the most recent update time
+          const mostRecentUpdate = valuesResponse.data.reduce((latest, current) => {
+            return new Date(current.updatedAt) > new Date(latest.updatedAt) ? current : latest;
+          }, valuesResponse.data[0]);
+          setLastUpdated(new Date(mostRecentUpdate.updatedAt).toLocaleString());
+        }
+      } catch (error) {
+        console.error('Error fetching parameters:', error);
+        toast.error('Failed to load parameters');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchParameters();
+  }, [isAuthenticated, user?.institutionId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -74,26 +82,81 @@ const CreditParametersConfig = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real application, this would save the parameters to the server
-    setIsEditing(false);
-    setLastUpdated(new Date().toLocaleString());
+    if (!isAuthenticated || !user?.institutionId) {
+      toast.error('Authentication required');
+      navigate('/');
+      return;
+    }
 
-    // Redirect to the dashboard page after saving
-    navigate('/workspace-dashboard');
+    try {
+      setIsLoading(true);
+      
+      // Convert form data to API format
+      const parametersToUpdate: CreditParameter[] = Object.entries(formData)
+        .map(([uniqueCode, value]) => {
+          const parameter = parameters.find(p => p.uniqueCode === uniqueCode);
+          if (!parameter) return null;
+          return {
+            parameterId: parameter.id,
+            value: parseFloat(value)
+          };
+        })
+        .filter((param): param is CreditParameter => param !== null);
+
+      const response = await creditParametersService.setInstitutionParameters(user.institutionId, parametersToUpdate);
+      
+      if (response.success) {
+        toast.success('Parameters updated successfully');
+        setIsEditing(false);
+        setLastUpdated(new Date().toLocaleString());
+        navigate('/workspace-dashboard');
+      } else {
+        toast.error(response.message || 'Failed to update parameters');
+      }
+    } catch (error) {
+      console.error('Error updating parameters:', error);
+      toast.error('Failed to update parameters');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleReset = () => {
-    // Reset to default values
-    setFormData({
-      maxRiskyLoanAmount: '30000',
-      minRiskyLoanAmount: '5000',
-      incomeMultiplier: '3.0',
-      minInterestRate: '4.0',
-      maxInterestRate: '16.0',
-      verifiedMonthlyIncomeThreshold: '3000'
-    });
+  const handleReset = async () => {
+    if (!isAuthenticated || !user?.institutionId) {
+      toast.error('Authentication required');
+      navigate('/');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Reset to default values (0 for all parameters)
+      const defaultParameters: CreditParameter[] = parameters.map(param => ({
+        parameterId: param.id,
+        value: 0
+      }));
+
+      const response = await creditParametersService.setInstitutionParameters(user.institutionId, defaultParameters);
+      
+      if (response.success) {
+        const newFormData: Record<string, string> = {};
+        parameters.forEach(param => {
+          newFormData[param.uniqueCode] = '0';
+        });
+        setFormData(newFormData);
+        toast.success('Parameters reset to defaults');
+      } else {
+        toast.error(response.message || 'Failed to reset parameters');
+      }
+    } catch (error) {
+      console.error('Error resetting parameters:', error);
+      toast.error('Failed to reset parameters');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const showParameterInfo = (paramName: string) => {
@@ -144,291 +207,93 @@ const CreditParametersConfig = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-8">
-              {/* Parameter Fields */}
-              <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                {/* Max Risky Loan Amount */}
-                <div className="sm:col-span-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="maxRiskyLoanAmount" className="block text-sm font-medium text-gray-700">
-                      Maximum Loan Amount
-                    </label>
-                    <button
-                      aria-label="Show information about Maximum Loan Amount"
-                      type="button" 
-                      className="text-[#008401] hover:text-[#006401] text-sm"
-                      onClick={() => showParameterInfo('maxRiskyLoanAmount')}
-                    >
-                      <InfoIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">$</span>
+          {isLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                  {parameters.map((parameter) => (
+                    <div key={parameter.id} className="sm:col-span-1">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor={parameter.uniqueCode} className="block text-sm font-medium text-gray-700">
+                          {parameter.name}
+                        </label>
+                        <button
+                          aria-label={`Show information about ${parameter.name}`}
+                          type="button" 
+                          className="text-[#008401] hover:text-[#006401] text-sm"
+                          onClick={() => showParameterInfo(parameter.uniqueCode)}
+                        >
+                          <InfoIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="mt-1 relative rounded-md shadow-sm">
+                        <Input
+                          type="number"
+                          name={parameter.uniqueCode}
+                          id={parameter.uniqueCode}
+                          value={formData[parameter.uniqueCode] || ''}
+                          onChange={handleChange}
+                          disabled={!isEditing || isLoading}
+                          required
+                          fullWidth
+                          step="0.1"
+                        />
+                      </div>
+                      {selectedParameter === parameter.uniqueCode && (
+                        <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
+                          <p><strong>Description:</strong> {parameter.description}</p>
+                          <p className="mt-1"><strong>Recommended Range:</strong> {parameter.recommendedRange}</p>
+                          <p className="mt-1"><strong>Business Impact:</strong> {parameter.impact}</p>
+                        </div>
+                      )}
                     </div>
-                    <Input
-                      type="number"
-                      name="maxRiskyLoanAmount"
-                      id="maxRiskyLoanAmount"
-                      value={formData.maxRiskyLoanAmount}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      required
-                      fullWidth
-                      className="pl-7"
-                    />
-                  </div>
-                  {selectedParameter === 'maxRiskyLoanAmount' && (
-                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
-                      <p><strong>Description:</strong> {parameterInfo.maxRiskyLoanAmount.description}</p>
-                      <p className="mt-1"><strong>Recommended Range:</strong> {parameterInfo.maxRiskyLoanAmount.recommendedRange}</p>
-                      <p className="mt-1"><strong>Business Impact:</strong> {parameterInfo.maxRiskyLoanAmount.impact}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Min Risky Loan Amount */}
-                <div className="sm:col-span-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="minRiskyLoanAmount" className="block text-sm font-medium text-gray-700">
-                      Minimum Loan Amount
-                    </label>
-                    <button
-                      aria-label="Show information about Minimum Loan Amount"
-                      type="button" 
-                      className="text-[#008401] hover:text-[#006401] text-sm"
-                      onClick={() => showParameterInfo('minRiskyLoanAmount')}
-                    >
-                      <InfoIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">$</span>
-                    </div>
-                    <Input
-                      type="number"
-                      name="minRiskyLoanAmount"
-                      id="minRiskyLoanAmount"
-                      value={formData.minRiskyLoanAmount}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      required
-                      fullWidth
-                      className="pl-7"
-                    />
-                  </div>
-                  {selectedParameter === 'minRiskyLoanAmount' && (
-                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
-                      <p><strong>Description:</strong> {parameterInfo.minRiskyLoanAmount.description}</p>
-                      <p className="mt-1"><strong>Recommended Range:</strong> {parameterInfo.minRiskyLoanAmount.recommendedRange}</p>
-                      <p className="mt-1"><strong>Business Impact:</strong> {parameterInfo.minRiskyLoanAmount.impact}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/*Currency Symbol */}
-                {/* <div className="sm:col-span-3">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Currency
-                      </label>
-                      <InfoIcon
-                        className="h-4 w-4 text-gray-400 cursor-help"
-                        aria-label="Base currency for all monetary values"
-                      />
-                    </div>
-                    <select
-                      aria-label="Currency selection"
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                    >
-                      <option value="USD">United States Dollar (USD)</option>
-                      <option value="EUR">Euro (EUR)</option>
-                      <option value="GBP">British Pound (GBP)</option>
-                      <option value="KES">Kenyan Shilling (KES)</option>
-                    </select>
-                  </div> */}
-
-                {/* Income Multiplier */}
-                <div className="sm:col-span-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="incomeMultiplier" className="block text-sm font-medium text-gray-700">
-                      Income Multiplier
-                    </label>
-                    <button
-                      aria-label="Show information about Income Multiplier"
-                      type="button" 
-                      className="text-[#008401] hover:text-[#006401] text-sm"
-                      onClick={() => showParameterInfo('incomeMultiplier')}
-                    >
-                      <InfoIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <Input
-                    type="number"
-                    name="incomeMultiplier"
-                    id="incomeMultiplier"
-                    value={formData.incomeMultiplier}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    required
-                    fullWidth
-                    step="0.1"
-                  />
-                  {selectedParameter === 'incomeMultiplier' && (
-                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
-                      <p><strong>Description:</strong> {parameterInfo.incomeMultiplier.description}</p>
-                      <p className="mt-1"><strong>Recommended Range:</strong> {parameterInfo.incomeMultiplier.recommendedRange}</p>
-                      <p className="mt-1"><strong>Business Impact:</strong> {parameterInfo.incomeMultiplier.impact}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Verified Monthly Income Threshold */}
-                <div className="sm:col-span-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="verifiedMonthlyIncomeThreshold" className="block text-sm font-medium text-gray-700">
-                      Verified Monthly Income Threshold
-                    </label>
-                    <button
-                      aria-label="Show information about Verified Monthly Income Threshold"
-                      type="button" 
-                      className="text-[#008401] hover:text-[#006401] text-sm"
-                      onClick={() => showParameterInfo('verifiedMonthlyIncomeThreshold')}
-                    >
-                      <InfoIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">$</span>
-                    </div>
-                    <Input
-                      type="number"
-                      name="verifiedMonthlyIncomeThreshold"
-                      id="verifiedMonthlyIncomeThreshold"
-                      value={formData.verifiedMonthlyIncomeThreshold}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      required
-                      fullWidth
-                      className="pl-7"
-                    />
-                  </div>
-                  {selectedParameter === 'verifiedMonthlyIncomeThreshold' && (
-                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
-                      <p><strong>Description:</strong> {parameterInfo.verifiedMonthlyIncomeThreshold.description}</p>
-                      <p className="mt-1"><strong>Recommended Range:</strong> {parameterInfo.verifiedMonthlyIncomeThreshold.recommendedRange}</p>
-                      <p className="mt-1"><strong>Business Impact:</strong> {parameterInfo.verifiedMonthlyIncomeThreshold.impact}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Min Interest Rate */}
-                <div className="sm:col-span-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="minInterestRate" className="block text-sm font-medium text-gray-700">
-                      Minimum Interest Rate (%)
-                    </label>
-                    <button
-                      title="Show information about Minimum Interest Rate"
-                      type="button" 
-                      className="text-[#008401] hover:text-[#006401] text-sm"
-                      onClick={() => showParameterInfo('minInterestRate')}
-                    >
-                      <InfoIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <Input
-                    type="number"
-                    name="minInterestRate"
-                    id="minInterestRate"
-                    value={formData.minInterestRate}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    required
-                    fullWidth
-                    step="0.1"
-                  />
-                  {selectedParameter === 'minInterestRate' && (
-                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
-                      <p><strong>Description:</strong> {parameterInfo.minInterestRate.description}</p>
-                      <p className="mt-1"><strong>Recommended Range:</strong> {parameterInfo.minInterestRate.recommendedRange}</p>
-                      <p className="mt-1"><strong>Business Impact:</strong> {parameterInfo.minInterestRate.impact}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Max Interest Rate */}
-                <div className="sm:col-span-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="maxInterestRate" className="block text-sm font-medium text-gray-700">
-                      Maximum Interest Rate (%)
-                    </label>
-                    <button
-                      title="Show information about Maximum Interest Rate"
-                      type="button" 
-                      className="text-[#008401] hover:text-[#006401] text-sm"
-                      onClick={() => showParameterInfo('maxInterestRate')}
-                    >
-                      <InfoIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <Input
-                    type="number"
-                    name="maxInterestRate"
-                    id="maxInterestRate"
-                    value={formData.maxInterestRate}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    required
-                    fullWidth
-                    step="0.1"
-                  />
-                  {selectedParameter === 'maxInterestRate' && (
-                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
-                      <p><strong>Description:</strong> {parameterInfo.maxInterestRate.description}</p>
-                      <p className="mt-1"><strong>Recommended Range:</strong> {parameterInfo.maxInterestRate.recommendedRange}</p>
-                      <p className="mt-1"><strong>Business Impact:</strong> {parameterInfo.maxInterestRate.impact}</p>
-                    </div>
-                  )}
+                  ))}
                 </div>
               </div>
-            </div>
 
-            <div className="mt-8 flex justify-end">
-              {!isEditing ? (
-                <Button onClick={() => setIsEditing(true)}>
-                  Edit Parameters
-                </Button>
-              ) : (
-                <div className="flex space-x-3">
+              <div className="mt-8 flex justify-end">
+                {!isEditing ? (
                   <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={handleReset}
+                    onClick={() => setIsEditing(true)}
+                    disabled={isLoading}
                   >
-                    <RefreshCcwIcon className="h-4 w-4 mr-2" />
-                    Reset to Defaults
+                    Edit Parameters
                   </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setIsEditing(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    <SaveIcon className="h-4 w-4 mr-2" />
-                    Save Configuration
-                  </Button>
-                </div>
-              )}
-            </div>
-          </form>
+                ) : (
+                  <div className="flex space-x-3">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleReset}
+                      disabled={isLoading}
+                    >
+                      <RefreshCcwIcon className="h-4 w-4 mr-2" />
+                      Reset to Defaults
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setIsEditing(false)}
+                      disabled={isLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit"
+                      disabled={isLoading}
+                    >
+                      <SaveIcon className="h-4 w-4 mr-2" />
+                      Save Configuration
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </Layout>

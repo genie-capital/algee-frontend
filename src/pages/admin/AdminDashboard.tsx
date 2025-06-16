@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Building2, FileText, Settings, Cog, Users2, Clock, } from 'lucide-react';
+import { Users, Building2, FileText, Settings, Cog, Users2, Clock, Wrench, } from 'lucide-react';
 import AdminNavbar from '../../components/admin/AdminNavbar';
 
 const AdminDashboard = () => {
@@ -66,11 +66,14 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       <AdminNavbar />
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <main className="py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          
+          {/* Stats Grid */}
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => (
               <div
                 key={stat.name}
@@ -115,46 +118,7 @@ const AdminDashboard = () => {
             ))}
           </div>
 
-          <div className="mt-8">
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:px-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Recent Activity
-                </h3>
-              </div>
-              <div className="border-t border-gray-200">
-                <ul className="divide-y divide-gray-200">
-                  {recentActivities.map((activity) => (
-                    <li key={activity.id} className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0">
-                            {activity.type === 'institution' ? (
-                              <Building2 className="h-5 w-5 text-gray-400" />
-                            ) : activity.type === 'user' ? (
-                              <Users className="h-5 w-5 text-gray-400" />
-                            ) : (
-                              <Settings className="h-5 w-5 text-gray-400" />
-                            )}
-                          </div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">
-                              {activity.action}
-                            </p>
-                            <p className="text-sm text-gray-500">{activity.name}</p>
-                          </div>
-                        </div>
-                        <div className="ml-2 flex-shrink-0">
-                          <p className="text-sm text-gray-500">{activity.time}</p>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-
+          {/* Management Cards */}
           <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {/* Institution management */}
             <div
@@ -202,24 +166,23 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
-
-            {/* Audit Logs */}
+            {/* Institution Parameter Management */}
             <div
-              onClick={() => navigate('/admin/audit')}
+              onClick={() => navigate('/admin/parameters')}
               className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
             >
               <div className="p-5">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <Clock className="h-6 w-6 text-[#008401]" />
+                    <Wrench className="h-6 w-6 text-[#008401]" />
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">
-                        Audit Logs
+                        Institution Parameter Management
                       </dt>
                       <dd className="mt-1 text-sm text-gray-900">
-                        View system activity and audit trails
+                        Create, Manage and Update Institution Paramneters
                       </dd>
                     </dl>
                   </div>
@@ -253,7 +216,7 @@ const AdminDashboard = () => {
 
             {/* Category Management */}
             <div
-              onClick={() => navigate('/admin/institution')}
+              onClick={() => navigate('/admin/categories')}
               className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
             >
               <div className="p-5">
@@ -272,6 +235,94 @@ const AdminDashboard = () => {
                     </dl>
                   </div>
                 </div>
+              </div>
+            </div>
+            {/* Admin Management */}
+            <div
+              onClick={() => navigate('/admin/manage')}
+              className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            >
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Cog className="h-6 w-6 text-[#008401]" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        System Admin Management
+                      </dt>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        Manage System Administrators
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Parameter Management */}
+            <div
+              onClick={() => navigate('/admin/formula')}
+              className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            >
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Settings className="h-6 w-6 text-[#008401]" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        Parameter Management
+                      </dt>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        Manage all parameters, categories, and variables
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="mt-8">
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  Recent Activity
+                </h3>
+              </div>
+              <div className="border-t border-gray-200">
+                <ul className="divide-y divide-gray-200">
+                  {recentActivities.map((activity) => (
+                    <li key={activity.id} className="px-4 py-4 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            {activity.type === 'institution' ? (
+                              <Building2 className="h-5 w-5 text-gray-400" />
+                            ) : activity.type === 'user' ? (
+                              <Users className="h-5 w-5 text-gray-400" />
+                            ) : (
+                              <Settings className="h-5 w-5 text-gray-400" />
+                            )}
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-gray-900">
+                              {activity.action}
+                            </p>
+                            <p className="text-sm text-gray-500">{activity.name}</p>
+                          </div>
+                        </div>
+                        <div className="ml-2 flex-shrink-0">
+                          <p className="text-sm text-gray-500">{activity.time}</p>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>

@@ -1,140 +1,140 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from 'lucide-react';
 import Button from '../components/common/Button';
+import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-
-interface ClientAssessment {
-  id: string;
-  name: string;
-  score: number;
-  riskLevel: 'Low' | 'Medium' | 'High';
-  creditLimit: string;
-  interestRate: string;
-}
+import ProcessingModal from '../components/ProcessingModal';
+import { useResults } from '../hooks/useResults';
+import { Result } from '../services/resultsService';
 
 const BatchAssessmentDetails = () => {
   const { batchId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const {
+    loading,
+    error,
+    results,
+    pagination,
+    summary,
+    getResultsByBatch,
+    exportResults
+  } = useResults();
 
-  // This would typically come from an API call using the batchId
-  const [batchDetails] = React.useState({
-    id: batchId,
-    fileName: 'clients_oct_2023.csv',
-    dateSubmitted: new Date('2023-10-15T14:30:25'),
-    totalRecords: 245,
-    completedRecords: 245,
-    averageScore: 85,
-    riskDistribution: {
-      Low: 150,
-      Medium: 75,
-      High: 20
-    }
+  const [filters, setFilters] = useState({
+    page: 1,
+    limit: 20,
+    sortBy: 'createdAt',
+    sortOrder: 'DESC' as const,
+    search: ''
   });
 
-  const [clientAssessments] = React.useState<ClientAssessment[]>([
-    {
-      id: 'CLI-001',
-      name: 'John Doe',
-      score: 92,
-      riskLevel: 'Low',
-      creditLimit: 'XAF600,000',
-      interestRate: '3.8%'
-    },
-    {
-      id: 'CLI-002',
-      name: 'Jane Smith',
-      score: 78,
-      riskLevel: 'Medium',
-      creditLimit: 'XAF150,000',
-      interestRate: '6.5%'
-    },
-    {
-      id: 'CLI-003',
-      name: 'Bob Johnson',
-      score: 45,
-      riskLevel: 'High',
-      creditLimit: 'XAF50,000',
-      interestRate: '11.2%'
-    }
-  ]);
+  useEffect(() => {
+    const fetchBatchResults = async () => {
+      if (batchId) {
+        await getResultsByBatch(parseInt(batchId), filters);
+      }
+    };
 
-  const getRiskLevelColor = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'Low':
-        return 'bg-green-100 text-green-800';
-      case 'Medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'High':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    fetchBatchResults();
+  }, [batchId, filters, getResultsByBatch]);
+
+  const handleViewResults = () => {
+    navigate(`/batch/${batchId}/results`);
+  };
+
+  const handleClose = () => {
+    navigate(-1);
+  };
+
+  const handleExport = async () => {
+    if (batchId) {
+      await exportResults({
+        uploadBatchId: parseInt(batchId),
+        format: 'csv'
+      });
     }
   };
+
+  const getRiskLevelColor = (weight: number) => {
+    if (weight >= 0.8) return 'bg-green-100 text-green-800';
+    if (weight >= 0.6) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
+  if (!results) {
+    return <div>No batch details found</div>;
+  }
 
   return (
     <>
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center">
-            <Button
-              variant="outline"
-              size="sm"
-              className="mr-4"
-              onClick={() => navigate('/results')}
-            >
-              <ArrowLeftIcon className="h-4 w-4 mr-1" />
-              Back
-            </Button>
-            <div>
-              <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-                Batch Assessment Details
-              </h2>
-              <p className="mt-1 text-sm text-gray-500">
-                {batchDetails.fileName}
-              </p>
-            </div>
-          </div>
+          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            Batch Assessment Details
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            View detailed results for batch {batchId}
+          </p>
+        </div>
+        <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+          <Button
+            variant="outline"
+            onClick={handleExport}
+          >
+            Export Results
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate(-1)}
+            className="flex items-center"
+          >
+            <ArrowLeftIcon className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 mb-8">
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Batch Summary</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">Total Records</p>
-              <p className="text-2xl font-semibold text-gray-900">{batchDetails.totalRecords}</p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">Completed Records</p>
-              <p className="text-2xl font-semibold text-gray-900">{batchDetails.completedRecords}</p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">Average Score</p>
-              <p className="text-2xl font-semibold text-gray-900">{batchDetails.averageScore}%</p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">Date Processed</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {batchDetails.dateSubmitted.toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Risk Distribution</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {Object.entries(batchDetails.riskDistribution).map(([level, count]) => (
-              <div key={level} className={`p-4 rounded-lg ${getRiskLevelColor(level)}`}>
-                <p className="text-sm font-medium">{level} Risk</p>
-                <p className="text-2xl font-semibold">{count} clients</p>
+      {summary && (
+        <div className="grid grid-cols-1 gap-6 mb-8">
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Batch Summary</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Total Records</p>
+                <p className="text-2xl font-semibold text-gray-900">{summary.totalResults}</p>
               </div>
-            ))}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Average Credit Limit</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summary.avgCreditLimit)}
+                </p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Average Interest Rate</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {summary.avgInterestRate.toFixed(2)}%
+                </p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Credit Limit Range</p>
+                <p className="text-sm font-medium">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summary.creditLimitRange.min)} - {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summary.creditLimitRange.max)}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-200">
@@ -147,16 +147,10 @@ const BatchAssessmentDetails = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Client ID
+                  Client
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Score
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Risk Level
+                  Credit Limit Weight
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Credit Limit
@@ -164,45 +158,86 @@ const BatchAssessmentDetails = () => {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Interest Rate
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {clientAssessments.map((assessment) => (
-                <tr key={assessment.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#07002F]">
-                    {assessment.id}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {assessment.name}
+              {results.map((result) => (
+                <tr key={result.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-[#07002F]">{result.client.name}</div>
+                    <div className="text-sm text-gray-500">{result.client.reference_number}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className={`h-2.5 w-2.5 rounded-full mr-2 ${
-                        assessment.score >= 80 ? 'bg-green-500' : 
-                        assessment.score >= 70 ? 'bg-yellow-500' : 
-                        'bg-red-500'
+                        getRiskLevelColor(result.sum_normalised_credit_limit_weights)
                       }`}></div>
                       <span className="text-sm text-gray-900">
-                        {assessment.score}
+                        {(result.sum_normalised_credit_limit_weights * 100).toFixed(1)}%
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRiskLevelColor(assessment.riskLevel)}`}>
-                      {assessment.riskLevel}
-                    </span>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(result.credit_limit)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {assessment.creditLimit}
+                    {result.interest_rate.toFixed(2)}%
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {assessment.interestRate}
+                    {new Date(result.createdAt).toLocaleDateString()}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {pagination && (
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <Button
+                onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                disabled={pagination.page === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                disabled={pagination.page === pagination.totalPages}
+              >
+                Next
+              </Button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing <span className="font-medium">{pagination.page}</span> to{' '}
+                  <span className="font-medium">{pagination.totalPages}</span> of{' '}
+                  <span className="font-medium">{pagination.total}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <Button
+                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                    disabled={pagination.page === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                    disabled={pagination.page === pagination.totalPages}
+                  >
+                    Next
+                  </Button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

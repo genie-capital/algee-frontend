@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 // Add to User type
-interface User {
+export interface User {
   id: number;
-  name: string;
   email: string;
+  name: string;
+  institutionId: number;
+  role: string;
   is_admin: boolean;
   is_active: boolean;
-  role: string;
   permissions: string[];
   profilePhoto?: string;
   institutionName?: string;
@@ -23,6 +24,7 @@ type AuthContextType = {
   isAdmin: boolean;
   loading: boolean;
   error: string | null;
+  token: string | null;
   login: (email: string, password: string, isAdmin?: boolean) => Promise<void>;
   logout: () => void;
   clearError: () => void;
@@ -45,7 +47,8 @@ const ADMIN_CREDENTIALS = {
     is_admin: true,
     is_active: true,
     role: 'admin',
-    permissions: ['all']
+    permissions: ['all'],
+    institutionId: 0 // Admin has no institution
   }
 };
 
@@ -61,7 +64,8 @@ const INSTITUTION_CREDENTIALS = {
     institutionName: 'Example Bank',
     institutionLogo: '/logo.png',
     role: 'institution_admin',
-    permissions: ['manage_institution']
+    permissions: ['manage_institution'],
+    institutionId: 1 // Test institution ID
   }
 };
 
@@ -83,6 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(sessionStorage.getItem('token'));
   const navigate = useNavigate();
   
   // Check if user is already logged in on mount
@@ -135,7 +140,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               institutionName: isInstitution ? response.data.name : undefined,
               institutionLogo: isInstitution ? response.data.logo : undefined,
               role: isAdmin ? 'admin' : 'institution_admin',
-              permissions: isAdmin ? ['all'] : ['manage_institution']
+              permissions: isAdmin ? ['all'] : ['manage_institution'],
+              institutionId: isAdmin ? 0 : response.data.institutionId
             });
           }
         } catch (profileError) {
@@ -230,7 +236,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           institutionName: !isAdmin ? response.data.name : undefined,
           institutionLogo: !isAdmin ? response.data.logo : undefined,
           role: isAdmin ? 'admin' : 'institution_admin',
-          permissions: isAdmin ? ['all'] : ['manage_institution']
+          permissions: isAdmin ? ['all'] : ['manage_institution'],
+          institutionId: isAdmin ? 0 : response.data.institutionId
         });
         
         // Navigate based on user type
@@ -275,9 +282,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       // Normal API call for production
-      await api.post('/api/institution/create', institutionData);
+      const response = await api.post('/api/institution/create', institutionData);
+      
+      if (response.data.success) {
+        // Registration successful
+        return response.data;
+      } else {
+        // Handle API error response
+        const errorMessage = response.data.message || 'Registration failed. Please try again.';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
+      // Handle network errors or API errors
+      const errorMessage = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
       setError(errorMessage);
       throw err;
     } finally {
@@ -343,6 +361,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isAdmin: user?.is_admin || false,
         loading,
         error,
+        token,
         login,
         logout,
         clearError,

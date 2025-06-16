@@ -10,12 +10,20 @@
     "preview": "npx vite preview"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@headlessui/react": "^2.2.4",
+    "@heroicons/react": "^2.2.0",
+    "@mui/icons-material": "^7.1.1",
+    "@mui/material": "^7.1.1",
     "axios": "^1.9.0",
     "country-state-city": "^3.2.1",
     "lucide-react": "^0.441.0",
     "magic-patterns-vite-template": "file:",
+    "notistack": "^3.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.5.2",
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {

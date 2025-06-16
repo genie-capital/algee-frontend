@@ -20,17 +20,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel
+  Paper
 } from '@mui/material';
 import { PencilIcon, TrashIcon, PlusIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import AdminNavbar from '../../components/admin/AdminNavbar';
 import BackToDashboard from '../../components/admin/BackToDashboard';
-import { API_BASE_URL } from '../../config';
+import { API_BASE_URL } from '../../config/api';
 
 interface VariableCategory {
   id: number;
@@ -38,36 +34,30 @@ interface VariableCategory {
   description: string;
   creditLimitWeight: number;
   interestRateWeight: number;
-}
-
-interface Variable {
-  id: number;
-  name: string;
-  description: string;
-  categoryId: number;
-  responseType: string;
-  isMasked: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-const VariableManagement: React.FC = () => {
+const CategoryManagement: React.FC = () => {
   const { token } = useAuth();
-  const [variables, setVariables] = useState<Variable[]>([]);
   const [categories, setCategories] = useState<VariableCategory[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
-  const [editingVariable, setEditingVariable] = useState<Variable | null>(null);
+  const [editingCategory, setEditingCategory] = useState<VariableCategory | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    categoryId: '',
-    responseType: '',
-    isMasked: false
+    creditLimitWeight: 0,
+    interestRateWeight: 0
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const fetchCategories = async () => {
+    if (!token) {
+      setError('Authentication required');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/variableCategory/all`, {
         headers: {
@@ -85,47 +75,26 @@ const VariableManagement: React.FC = () => {
     }
   };
 
-  const fetchVariables = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/variable/all`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setVariables(data.data);
-      } else {
-        setError(data.message);
-      }
-    } catch (err) {
-      setError('Failed to fetch variables');
-    }
-  };
-
   useEffect(() => {
     fetchCategories();
-    fetchVariables();
   }, [token]);
 
-  const handleOpenDialog = (variable?: Variable) => {
-    if (variable) {
-      setEditingVariable(variable);
+  const handleOpenDialog = (category?: VariableCategory) => {
+    if (category) {
+      setEditingCategory(category);
       setFormData({
-        name: variable.name,
-        description: variable.description,
-        categoryId: variable.categoryId.toString(),
-        responseType: variable.responseType,
-        isMasked: variable.isMasked
+        name: category.name,
+        description: category.description,
+        creditLimitWeight: category.creditLimitWeight,
+        interestRateWeight: category.interestRateWeight
       });
     } else {
-      setEditingVariable(null);
+      setEditingCategory(null);
       setFormData({
         name: '',
         description: '',
-        categoryId: '',
-        responseType: '',
-        isMasked: false
+        creditLimitWeight: 0,
+        interestRateWeight: 0
       });
     }
     setOpenDialog(true);
@@ -133,74 +102,74 @@ const VariableManagement: React.FC = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setEditingVariable(null);
+    setEditingCategory(null);
     setFormData({
       name: '',
       description: '',
-      categoryId: '',
-      responseType: '',
-      isMasked: false
+      creditLimitWeight: 0,
+      interestRateWeight: 0
     });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!token) {
+      setError('Authentication required');
+      return;
+    }
+
     try {
-      const url = editingVariable
-        ? `${API_BASE_URL}/variable/update/${editingVariable.id}`
-        : `${API_BASE_URL}/variable/create`;
+      const url = editingCategory
+        ? `${API_BASE_URL}/variableCategory/update/${editingCategory.id}`
+        : `${API_BASE_URL}/variableCategory/create`;
       
       const response = await fetch(url, {
-        method: editingVariable ? 'PUT' : 'POST',
+        method: editingCategory ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...formData,
-          categoryId: parseInt(formData.categoryId)
-        })
+        body: JSON.stringify(formData)
       });
 
       const data = await response.json();
       if (data.success) {
-        setSuccess(editingVariable ? 'Variable updated successfully' : 'Variable created successfully');
-        fetchVariables();
-        handleCloseDialog();
+        setSuccess(editingCategory ? 'Category updated successfully' : 'Category created successfully');
+        setOpenDialog(false);
+        fetchCategories();
       } else {
         setError(data.message);
       }
     } catch (err) {
-      setError('Failed to save variable');
+      setError('Failed to save category');
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this variable?')) return;
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/variable/delete/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
+  const handleDelete = async (id: string) => {
+    if (!token) {
+      setError('Authentication required');
+      return;
+    }
+
+    if (window.confirm('Are you sure you want to delete this category?')) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/variableCategory/delete/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        if (data.success) {
+          setSuccess('Category deleted successfully');
+          fetchCategories();
+        } else {
+          setError(data.message);
         }
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setSuccess('Variable deleted successfully');
-        fetchVariables();
-      } else {
-        setError(data.message);
+      } catch (err) {
+        setError('Failed to delete category');
       }
-    } catch (err) {
-      setError('Failed to delete variable');
     }
-  };
-
-  const getCategoryName = (categoryId: number) => {
-    const category = categories.find(cat => cat.id === categoryId);
-    return category ? category.name : 'Unknown Category';
   };
 
   return (
@@ -213,10 +182,10 @@ const VariableManagement: React.FC = () => {
           <div className="md:flex md:items-center md:justify-between mb-8">
             <div className="flex-1 min-w-0">
               <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-                Variable Management
+                Category Management
               </h2>
               <p className="mt-1 text-sm text-gray-500">
-                Configure system-wide variables and their categories
+                Manage categories for system variables
               </p>
             </div>
             <div className="mt-4 flex md:mt-0 md:ml-4">
@@ -226,7 +195,7 @@ const VariableManagement: React.FC = () => {
                 onClick={() => handleOpenDialog()}
                 className="bg-[#008401] hover:bg-[#008401]/90"
               >
-                Add Variable
+                Add Category
               </Button>
             </div>
           </div>
@@ -238,25 +207,23 @@ const VariableManagement: React.FC = () => {
                   <TableRow>
                     <TableCell>Name</TableCell>
                     <TableCell>Description</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Response Type</TableCell>
-                    <TableCell>Masked</TableCell>
+                    <TableCell>Credit Limit Weight</TableCell>
+                    <TableCell>Interest Rate Weight</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {variables.map((variable) => (
-                    <TableRow key={variable.id}>
-                      <TableCell>{variable.name}</TableCell>
-                      <TableCell>{variable.description}</TableCell>
-                      <TableCell>{getCategoryName(variable.categoryId)}</TableCell>
-                      <TableCell>{variable.responseType}</TableCell>
-                      <TableCell>{variable.isMasked ? 'Yes' : 'No'}</TableCell>
+                  {categories.map((category) => (
+                    <TableRow key={category.id}>
+                      <TableCell>{category.name}</TableCell>
+                      <TableCell>{category.description}</TableCell>
+                      <TableCell>{category.creditLimitWeight}</TableCell>
+                      <TableCell>{category.interestRateWeight}</TableCell>
                       <TableCell>
-                        <IconButton onClick={() => handleOpenDialog(variable)}>
+                        <IconButton onClick={() => handleOpenDialog(category)}>
                           <PencilIcon size={20} />
                         </IconButton>
-                        <IconButton onClick={() => handleDelete(variable.id)}>
+                        <IconButton onClick={() => handleDelete(category.id.toString())}>
                           <TrashIcon size={20} />
                         </IconButton>
                       </TableCell>
@@ -269,7 +236,7 @@ const VariableManagement: React.FC = () => {
 
           <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
             <DialogTitle>
-              {editingVariable ? 'Edit Variable' : 'Add New Variable'}
+              {editingCategory ? 'Edit Category' : 'Add New Category'}
             </DialogTitle>
             <form onSubmit={handleSubmit}>
               <DialogContent>
@@ -290,51 +257,32 @@ const VariableManagement: React.FC = () => {
                     multiline
                     rows={3}
                   />
-                  <FormControl fullWidth required>
-                    <InputLabel>Category</InputLabel>
-                    <Select
-                      value={formData.categoryId}
-                      label="Category"
-                      onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    >
-                      {categories.map((category) => (
-                        <MenuItem key={category.id} value={category.id}>
-                          {category.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl fullWidth required>
-                    <InputLabel>Response Type</InputLabel>
-                    <Select
-                      value={formData.responseType}
-                      label="Response Type"
-                      onChange={(e) => setFormData({ ...formData, responseType: e.target.value })}
-                    >
-                      <MenuItem value="text">Text</MenuItem>
-                      <MenuItem value="number">Number</MenuItem>
-                      <MenuItem value="boolean">Boolean</MenuItem>
-                      <MenuItem value="date">Date</MenuItem>
-                      <MenuItem value="select">Select</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <FormControl fullWidth>
-                    <InputLabel>Masked</InputLabel>
-                    <Select
-                      value={formData.isMasked.toString()}
-                      label="Masked"
-                      onChange={(e) => setFormData({ ...formData, isMasked: e.target.value === 'true' })}
-                    >
-                      <MenuItem value="true">Yes</MenuItem>
-                      <MenuItem value="false">No</MenuItem>
-                    </Select>
-                  </FormControl>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      fullWidth
+                      label="Credit Limit Weight"
+                      type="number"
+                      value={formData.creditLimitWeight}
+                      onChange={(e) => setFormData({ ...formData, creditLimitWeight: parseFloat(e.target.value) })}
+                      required
+                      inputProps={{ step: 0.1, min: 0, max: 1 }}
+                    />
+                    <TextField
+                      fullWidth
+                      label="Interest Rate Weight"
+                      type="number"
+                      value={formData.interestRateWeight}
+                      onChange={(e) => setFormData({ ...formData, interestRateWeight: parseFloat(e.target.value) })}
+                      required
+                      inputProps={{ step: 0.1, min: 0, max: 1 }}
+                    />
+                  </Box>
                 </Box>
               </DialogContent>
               <DialogActions>
                 <Button onClick={handleCloseDialog}>Cancel</Button>
                 <Button type="submit" variant="contained" className="bg-[#008401] hover:bg-[#008401]/90">
-                  {editingVariable ? 'Update' : 'Create'}
+                  {editingCategory ? 'Update' : 'Create'}
                 </Button>
               </DialogActions>
             </form>
@@ -365,4 +313,4 @@ const VariableManagement: React.FC = () => {
   );
 };
 
-export default VariableManagement; 
+export default CategoryManagement; 

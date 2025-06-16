@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -20,6 +20,24 @@ import InstitutionParameterDetail from './pages/InstitutionParameterDetail';
 import ParametersConfig from './pages/ParametersConfig';
 import ProtectedRoute from './components/ProtectedRoute';
 import BatchAssessmentDetails from './pages/BatchAssessmentDetails';
+import ClientResultDetails from './components/ClientResultDetails';
+import ClientResultHistory from './components/ClientResultHistory';
+import CategoryManagement from './pages/admin/CategoryManagement';
+import InstitutionParameterManagement from './pages/admin/InstitutionParameterManagement';
+import ParameterManagement from './pages/admin/ParameterManagement';
+
+
+const ClientResultHistoryWrapper = () => {
+  const location = useLocation();
+  const { history } = location.state || {};
+  const { results, clientName, clientReference } = history || {};
+
+  return <ClientResultHistory 
+    results={results || []} 
+    clientName={clientName || ''} 
+    clientReference={clientReference || ''} 
+  />;
+};
 
 export function App() {
   return (
@@ -46,12 +64,21 @@ export function App() {
            
           {/* Don't forget to ad the ID to the unique batches "/${batchId}" 
               Also adjust it in batch assessment and assessment results */}
-          <Route path="/batchdetails" element={
+          <Route path="/batch/${batchId}" element={
             <ProtectedRoute>
               <BatchAssessmentDetails />
             </ProtectedRoute>
           } />
-
+          <Route path="/client/:clientId" element={
+            <ProtectedRoute>
+              <ClientResultDetails />
+            </ProtectedRoute>
+          } />
+          <Route path="/client/:clientId/history" element={
+            <ProtectedRoute>
+              <ClientResultHistoryWrapper />
+            </ProtectedRoute>
+          } />
 
           <Route path="/batch-assessment" element={
             <ProtectedRoute>
@@ -100,6 +127,16 @@ export function App() {
               <AuditLogs />
             </ProtectedRoute>
           } />
+          <Route path="/admin/parameters" element={
+            <ProtectedRoute requireAdmin={true}>
+              <InstitutionParameterManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/formula" element={
+            <ProtectedRoute requireAdmin={true}>
+              <ParameterManagement />
+            </ProtectedRoute>
+          } />
           <Route path="/admin/manage" element={
             <ProtectedRoute requireAdmin={true}>
               <AdminManagement />
@@ -108,6 +145,11 @@ export function App() {
           <Route path="/admin/settings" element={
             <ProtectedRoute requireAdmin={true}>
               <SystemSettings />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/categories" element={
+            <ProtectedRoute requireAdmin={true}>
+              <CategoryManagement />
             </ProtectedRoute>
           } />
         </Routes>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PlusIcon, EditIcon, TrashIcon, XIcon } from 'lucide-react';
 import Button from '../../components/common/Button';
 import api from '../../services/api';
+import { API_BASE_URL } from '../../config';
 
 // Define interfaces for data structures
 interface Admin {
@@ -66,7 +67,7 @@ const AdminManagement = () => {
   const fetchAdmins = async (): Promise<void> => {
     setLoading(true);
     try {
-      const response = await api.post('/admin/getAllAdmins');
+      const response = await api.post(`${API_BASE_URL}/admin/getAllAdmins`);
       
       // Type-safe response validation
       const responseData = response.data as ApiResponse<unknown>;
@@ -87,7 +88,7 @@ const AdminManagement = () => {
 
   const handleCreateAdmin = async (adminData: Partial<Admin>): Promise<void> => {
     try {
-      const response = await api.post('/admin/create', adminData);
+      const response = await api.post(`${API_BASE_URL}/admin/create`, adminData);
       const responseData = response.data as ApiResponse<unknown>;
       
       if (responseData.success) {
@@ -105,7 +106,7 @@ const AdminManagement = () => {
 
   const handleUpdateAdmin = async (id: string, adminData: Partial<Admin>): Promise<void> => {
     try {
-      const response = await api.put(`/admin/update/${id}`, adminData);
+      const response = await api.put(`${API_BASE_URL}/admin/update/${id}`, adminData);
       const responseData = response.data as ApiResponse<unknown>;
       
       if (responseData.success) {
@@ -124,7 +125,7 @@ const AdminManagement = () => {
   const handleDeactivateAdmin = async (id: string): Promise<void> => {
     if (window.confirm('Are you sure you want to deactivate this admin?')) {
       try {
-        const response = await api.delete(`/admin/deactivate/${id}`);
+        const response = await api.delete(`${API_BASE_URL}/admin/deactivate/${id}`);
         const responseData = response.data as ApiResponse<unknown>;
         
         if (responseData.success) {

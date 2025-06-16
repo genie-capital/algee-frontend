@@ -3,7 +3,13 @@ import { InfoIcon } from 'lucide-react';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Layout from '../components/Layout';
+import { creditScoringService } from '../services/creditScoringService';
+import { useAuth } from '../contexts/AuthContext';
+
 const ClientAssessment = () => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     clientRef: '',
     monthlyIncome: '',
@@ -15,30 +21,66 @@ const ClientAssessment = () => {
     dependents: ''
   });
   const [result, setResult] = useState<null | {
-    creditLimit: string;
-    interestRate: string;
-    score: number;
+    creditLimit: number;
+    interestRate: number;
+    originalCreditLimit: number;
+    creditLimitCapped: boolean;
+    calculationDetails: {
+      clientIncome: number;
+      institutionParams: {
+        incomeMultiple: number;
+        minLoanAmount: number;
+        maxLoanAmount: number;
+        maxInterestRate: number;
+        minInterestRate: number;
+      };
+      weightScores: {
+        creditLimitWeight: number;
+        interestRateWeight: number;
+        totalVariablesProcessed: number;
+      };
+    };
   }>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const {
-      name,
-      value
-    } = e.target;
+    const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value
     });
   };
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real application, this would send the data to the server for processing
-    // For demo purposes, we'll simulate a response
-    setResult({
-      creditLimit: '$25,000',
-      interestRate: '5.75%',
-      score: 82
-    });
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await creditScoringService.calculateClientResult(
+        parseInt(formData.clientRef),
+        undefined,
+        user?.institutionId
+      );
+
+      if (response.success) {
+        setResult({
+          creditLimit: response.data.creditLimit,
+          interestRate: response.data.interestRate,
+          originalCreditLimit: response.data.originalCreditLimit,
+          creditLimitCapped: response.data.creditLimitCapped,
+          calculationDetails: response.data.calculationDetails
+        });
+      } else {
+        setError(response.message || 'Failed to calculate credit score');
+      }
+    } catch (err) {
+      setError('An error occurred while calculating the credit score');
+      console.error('Error calculating credit score:', err);
+    } finally {
+      setLoading(false);
+    }
   };
+
   const handleReset = () => {
     setFormData({
       clientRef: '',
@@ -51,7 +93,9 @@ const ClientAssessment = () => {
       dependents: ''
     });
     setResult(null);
+    setError(null);
   };
+
   return <Layout>
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="flex-1 min-w-0">
@@ -147,14 +191,11 @@ const ClientAssessment = () => {
               <div className="bg-gray-50 overflow-hidden shadow rounded-lg">
                 <div className="px-4 py-5 sm:p-6">
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Credit Score
+                    Credit Limit Weight
                   </dt>
                   <dd className="mt-1 text-3xl font-semibold text-gray-900">
                     <div className="flex items-center">
-                      <span>{result.score}</span>
-                      <span className={`ml-2 text-sm px-2 py-1 rounded-full ${result.score >= 80 ? 'bg-green-100 text-green-800' : result.score >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                        {result.score >= 80 ? 'Excellent' : result.score >= 70 ? 'Good' : 'Poor'}
-                      </span>
+                      <span>{(result.calculationDetails.weightScores.creditLimitWeight * 100).toFixed(1)}%</span>
                     </div>
                   </dd>
                 </div>
@@ -165,7 +206,12 @@ const ClientAssessment = () => {
                     Recommended Credit Limit
                   </dt>
                   <dd className="mt-1 text-3xl font-semibold text-gray-900">
-                    {result.creditLimit}
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(result.creditLimit)}
+                    {result.creditLimitCapped && (
+                      <span className="ml-2 text-sm text-yellow-600">
+                        (Capped from {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(result.originalCreditLimit)})
+                      </span>
+                    )}
                   </dd>
                 </div>
               </div>
@@ -175,7 +221,7 @@ const ClientAssessment = () => {
                     Recommended Interest Rate
                   </dt>
                   <dd className="mt-1 text-3xl font-semibold text-gray-900">
-                    {result.interestRate}
+                    {result.interestRate.toFixed(2)}%
                   </dd>
                 </div>
               </div>

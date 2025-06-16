@@ -397,29 +397,58 @@ const RegistrationForm = () => {
         name: formData.businessName,
         email: formData.email,
         password: formData.password,
-        // Add additional fields as needed
         registrationNumber: formData.registrationNumber,
         institutionType: formData.institutionType,
         authorizationNumber: formData.authorizationNumber,
-        address: formData.address,
+        address: {
+          street: formData.address.street,
+          city: formData.address.city,
+          state: formData.address.state,
+          country: formData.address.country,
+          cityCode: formData.address.cityCode,
+          stateCode: formData.address.stateCode,
+          countryCode: formData.address.countryCode
+        },
         phoneNumber: formData.phoneNumber,
-        website: formData.website,
+        website: formData.website || undefined, // Only include if not empty
         adminInfo: {
           firstName: formData.firstName,
           lastName: formData.lastName,
           jobTitle: formData.jobTitle,
           email: formData.email,
           directPhone: formData.directPhone,
-          address: formData.adminAddress.sameAsBusiness ? formData.address : formData.adminAddress
+          address: formData.adminAddress.sameAsBusiness ? {
+            street: formData.address.street,
+            city: formData.address.city,
+            state: formData.address.state,
+            country: formData.address.country,
+            cityCode: formData.address.cityCode,
+            stateCode: formData.address.stateCode,
+            countryCode: formData.address.countryCode
+          } : {
+            street: formData.adminAddress.street,
+            city: formData.adminAddress.city,
+            state: formData.adminAddress.state,
+            country: formData.adminAddress.country,
+            cityCode: formData.adminAddress.cityCode,
+            stateCode: formData.adminAddress.stateCode,
+            countryCode: formData.adminAddress.countryCode
+          }
         },
         username: formData.username,
         enableTwoFactor: formData.enableTwoFactor,
-        acceptMarketing: formData.acceptMarketing
+        acceptMarketing: formData.acceptMarketing,
+        acceptTerms: formData.acceptTerms,
+        acceptDataProcessing: formData.acceptDataProcessing
       };
       
       await register(institutionData);
-      // Redirect to credit parameters config page
-      navigate('/parameters');
+      
+      // Show success message
+      alert('Registration successful! Your account is pending approval. You will receive an email once approved.');
+      
+      // Redirect to login page
+      navigate('/');
     } catch (err: any) {
       console.error('Registration error:', err);
       // Error is handled by the auth context

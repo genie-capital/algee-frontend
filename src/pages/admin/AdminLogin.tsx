@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorAlert from '../../components/common/ErrorAlert';
 import { validateForm, required } from '../../utils/validation';
+import api from '../../services/api';
 
 const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -59,6 +60,7 @@ const AdminLogin = () => {
     if (!validateFormData()) return;
     
     try {
+      // Call the login function from AuthContext with isAdmin=true
       await login(formData.username, formData.password, true);
       // Navigation is handled in the useEffect
     } catch (err) {
