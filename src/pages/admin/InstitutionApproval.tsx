@@ -27,6 +27,7 @@ import api from '../../services/api';
 import { API_BASE_URL } from '../../config';
 import AdminNavbar from '../../components/admin/AdminNavbar';
 import BackToDashboard from '../../components/admin/BackToDashboard';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 interface Document {
   id: string;
@@ -87,17 +88,22 @@ const InstitutionApproval: React.FC = () => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [showRejectReason, setShowRejectReason] = useState(false);
+  const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
+  const [rejectionLoading, setRejectionLoading] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchInstitutions();
-  }, []);
+  }, [filterStatus]);
 
   const fetchInstitutions = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await api.get(`${API_BASE_URL}/institutions/pending`);
+      const response = await api.get(`${API_BASE_URL}/institutions/${filterStatus}`);
       if (response.data.success) {
         setInstitutions(response.data.data);
       } else {
@@ -111,43 +117,58 @@ const InstitutionApproval: React.FC = () => {
   };
 
   const handleApprove = async (id: string) => {
+    setApprovalLoading(id);
+    setError(null);
+    setSuccessMessage(null);
     try {
       const response = await api.put(`${API_BASE_URL}/institutions/${id}/approve`);
       if (response.data.success) {
-        await fetchInstitutions(); // Refresh the list
+        await fetchInstitutions();
         setSelectedInstitution(null);
         setComment('');
-        setError(null);
+        setSuccessMessage('Institution approved successfully');
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         setError(response.data.message || 'Failed to approve institution');
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to approve institution');
+    } finally {
+      setApprovalLoading(null);
     }
   };
 
   const handleReject = async (id: string) => {
-    if (!comment) {
+    if (!comment.trim()) {
       setError('Please provide a reason for rejection');
       return;
     }
     
+    setRejectionLoading(id);
+    setError(null);
+    setSuccessMessage(null);
     try {
       const response = await api.put(`${API_BASE_URL}/institutions/${id}/reject`, {
         reason: comment
       });
       
       if (response.data.success) {
-        await fetchInstitutions(); // Refresh the list
+        await fetchInstitutions();
         setSelectedInstitution(null);
         setComment('');
         setError(null);
         setShowRejectReason(false);
+        setSuccessMessage('Institution rejected successfully');
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         setError(response.data.message || 'Failed to reject institution');
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to reject institution');
+    } finally {
+      setRejectionLoading(null);
     }
   };
 
@@ -156,16 +177,31 @@ const InstitutionApproval: React.FC = () => {
     setCurrentStep(1);
     setShowRejectReason(false);
     setComment('');
+    setError(null);
   };
 
   const filteredInstitutions = institutions.filter(inst => 
     inst.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     inst.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     inst.adminInfo.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inst.adminInfo.lastName.toLowerCase().includes(searchTerm.toLowerCase())
+    inst.adminInfo.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    inst.adminInfo.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const steps = ['Institution Information', 'Primary Administrator', 'Account Security', 'Terms & Compliance'];
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending Review</span>;
+      case 'approved':
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Approved</span>;
+      case 'rejected':
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>;
+      default:
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{status}</span>;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -177,41 +213,105 @@ const InstitutionApproval: React.FC = () => {
           <div className="md:flex md:items-center md:justify-between mb-8">
             <div className="flex-1 min-w-0">
               <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-                Pending Institution Approvals
+                Institution Approvals
               </h2>
               <p className="mt-1 text-sm text-gray-500">
-                Review and approve new institution registrations
+                Review and manage institution registrations
               </p>
             </div>
           </div>
 
           {error && <ErrorAlert message={error} />}
+          {successMessage && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <CheckCircle className="h-5 w-5 text-green-400" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-green-800">{successMessage}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Pending Institutions
-                </h3>
-                <div className="mt-3 sm:mt-0">
-                  <div className="relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <SearchIcon className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <Input
-                      type="text"
-                      placeholder="Search institutions..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+                <div className="flex items-center space-x-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Institutions
+                  </h3>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setFilterStatus('all')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium ${
+                        filterStatus === 'all' ? 'bg-[#07002F] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setFilterStatus('pending')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium ${
+                        filterStatus === 'pending' ? 'bg-[#07002F] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Pending
+                    </button>
+                    <button
+                      onClick={() => setFilterStatus('approved')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium ${
+                        filterStatus === 'approved' ? 'bg-[#07002F] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Approved
+                    </button>
+                    <button
+                      onClick={() => setFilterStatus('rejected')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium ${
+                        filterStatus === 'rejected' ? 'bg-[#07002F] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Rejected
+                    </button>
                   </div>
+                </div>
+                <div className="relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <SearchIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="Search institutions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
             </div>
 
             {loading ? (
-              <div className="p-6 text-center">Loading institutions...</div>
+              <div className="p-6 text-center">
+                <LoadingSpinner size="large" text="Loading institutions..." />
+              </div>
+            ) : filteredInstitutions.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                <div className="flex flex-col items-center">
+                  <Building2 className="h-12 w-12 text-gray-400 mb-4" />
+                  <p className="text-lg font-medium text-gray-900">No institutions found</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {filterStatus === 'pending' 
+                      ? 'There are no pending institutions to review'
+                      : filterStatus === 'approved'
+                      ? 'No approved institutions found'
+                      : filterStatus === 'rejected'
+                      ? 'No rejected institutions found'
+                      : 'No institutions found matching your search criteria'}
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -238,7 +338,9 @@ const InstitutionApproval: React.FC = () => {
                     {filteredInstitutions.map((institution) => (
                       <React.Fragment key={institution.id}>
                         <tr 
-                          className="cursor-pointer hover:bg-gray-50"
+                          className={`cursor-pointer hover:bg-gray-50 ${
+                            expandedRow === institution.id ? 'bg-gray-50' : ''
+                          }`}
                           onClick={() => toggleRowExpansion(institution.id)}
                         >
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -271,16 +373,19 @@ const InstitutionApproval: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                              Pending Review
-                            </span>
+                            {getStatusBadge(institution.status)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {expandedRow === institution.id ? (
-                              <ChevronUp className="h-5 w-5 text-gray-400" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5 text-gray-400" />
-                            )}
+                            <div className="flex items-center">
+                              {expandedRow === institution.id ? (
+                                <ChevronUp className="h-5 w-5 text-gray-400" />
+                              ) : (
+                                <ChevronDown className="h-5 w-5 text-gray-400" />
+                              )}
+                              {institution.status === 'pending' && (
+                                <span className="ml-2 text-xs text-gray-500">Click to review</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                         {expandedRow === institution.id && (
@@ -320,24 +425,30 @@ const InstitutionApproval: React.FC = () => {
                                       </div>
                                       <div>
                                         <p><span className="font-medium">Phone:</span> {institution.phoneNumber}</p>
-                                        <p><span className="font-medium">Website:</span> {institution.website}</p>
+                                        <p><span className="font-medium">Website:</span> {institution.website || 'N/A'}</p>
                                         <p><span className="font-medium">Address:</span> {institution.address.street}, {institution.address.city}, {institution.address.state}, {institution.address.country}</p>
                                       </div>
                                     </div>
                                     <div className="mt-6 flex justify-end space-x-3">
-                                      <Button
-                                        variant="danger"
-                                        onClick={() => setShowRejectReason(true)}
-                                      >
-                                        <XCircle className="h-4 w-4 mr-2" />
-                                        Reject
-                                      </Button>
-                                      <Button
-                                        onClick={() => setCurrentStep(prev => prev + 1)}
-                                      >
-                                        <CheckCircle className="h-4 w-4 mr-2" />
-                                        Approve & Continue
-                                      </Button>
+                                      {institution.status === 'pending' && (
+                                        <>
+                                          <Button
+                                            variant="danger"
+                                            onClick={() => setShowRejectReason(true)}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
+                                          >
+                                            <XCircle className="h-4 w-4 mr-2" />
+                                            {rejectionLoading === institution.id ? 'Rejecting...' : 'Reject'}
+                                          </Button>
+                                          <Button
+                                            onClick={() => setCurrentStep(prev => prev + 1)}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
+                                          >
+                                            <CheckCircle className="h-4 w-4 mr-2" />
+                                            {approvalLoading === institution.id ? 'Approving...' : 'Approve & Continue'}
+                                          </Button>
+                                        </>
+                                      )}
                                     </div>
                                     {showRejectReason && (
                                       <div className="mt-4">
@@ -354,15 +465,16 @@ const InstitutionApproval: React.FC = () => {
                                               setShowRejectReason(false);
                                               setComment('');
                                             }}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
                                           >
                                             Cancel
                                           </Button>
                                           <Button
                                             variant="danger"
                                             onClick={() => handleReject(institution.id)}
-                                            disabled={!comment.trim()}
+                                            disabled={!comment.trim() || !!approvalLoading || !!rejectionLoading}
                                           >
-                                            Confirm Rejection
+                                            {rejectionLoading === institution.id ? 'Rejecting...' : 'Confirm Rejection'}
                                           </Button>
                                         </div>
                                       </div>
@@ -385,19 +497,25 @@ const InstitutionApproval: React.FC = () => {
                                       </div>
                                     </div>
                                     <div className="mt-6 flex justify-end space-x-3">
-                                      <Button
-                                        variant="danger"
-                                        onClick={() => setShowRejectReason(true)}
-                                      >
-                                        <XCircle className="h-4 w-4 mr-2" />
-                                        Reject
-                                      </Button>
-                                      <Button
-                                        onClick={() => setCurrentStep(prev => prev + 1)}
-                                      >
-                                        <CheckCircle className="h-4 w-4 mr-2" />
-                                        Approve & Continue
-                                      </Button>
+                                      {institution.status === 'pending' && (
+                                        <>
+                                          <Button
+                                            variant="danger"
+                                            onClick={() => setShowRejectReason(true)}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
+                                          >
+                                            <XCircle className="h-4 w-4 mr-2" />
+                                            {rejectionLoading === institution.id ? 'Rejecting...' : 'Reject'}
+                                          </Button>
+                                          <Button
+                                            onClick={() => setCurrentStep(prev => prev + 1)}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
+                                          >
+                                            <CheckCircle className="h-4 w-4 mr-2" />
+                                            {approvalLoading === institution.id ? 'Approving...' : 'Approve & Continue'}
+                                          </Button>
+                                        </>
+                                      )}
                                     </div>
                                     {showRejectReason && (
                                       <div className="mt-4">
@@ -414,15 +532,16 @@ const InstitutionApproval: React.FC = () => {
                                               setShowRejectReason(false);
                                               setComment('');
                                             }}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
                                           >
                                             Cancel
                                           </Button>
                                           <Button
                                             variant="danger"
                                             onClick={() => handleReject(institution.id)}
-                                            disabled={!comment.trim()}
+                                            disabled={!comment.trim() || !!approvalLoading || !!rejectionLoading}
                                           >
-                                            Confirm Rejection
+                                            {rejectionLoading === institution.id ? 'Rejecting...' : 'Confirm Rejection'}
                                           </Button>
                                         </div>
                                       </div>
@@ -440,19 +559,25 @@ const InstitutionApproval: React.FC = () => {
                                       </div>
                                     </div>
                                     <div className="mt-6 flex justify-end space-x-3">
-                                      <Button
-                                        variant="danger"
-                                        onClick={() => setShowRejectReason(true)}
-                                      >
-                                        <XCircle className="h-4 w-4 mr-2" />
-                                        Reject
-                                      </Button>
-                                      <Button
-                                        onClick={() => setCurrentStep(prev => prev + 1)}
-                                      >
-                                        <CheckCircle className="h-4 w-4 mr-2" />
-                                        Approve & Continue
-                                      </Button>
+                                      {institution.status === 'pending' && (
+                                        <>
+                                          <Button
+                                            variant="danger"
+                                            onClick={() => setShowRejectReason(true)}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
+                                          >
+                                            <XCircle className="h-4 w-4 mr-2" />
+                                            {rejectionLoading === institution.id ? 'Rejecting...' : 'Reject'}
+                                          </Button>
+                                          <Button
+                                            onClick={() => setCurrentStep(prev => prev + 1)}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
+                                          >
+                                            <CheckCircle className="h-4 w-4 mr-2" />
+                                            {approvalLoading === institution.id ? 'Approving...' : 'Approve & Continue'}
+                                          </Button>
+                                        </>
+                                      )}
                                     </div>
                                     {showRejectReason && (
                                       <div className="mt-4">
@@ -469,15 +594,16 @@ const InstitutionApproval: React.FC = () => {
                                               setShowRejectReason(false);
                                               setComment('');
                                             }}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
                                           >
                                             Cancel
                                           </Button>
                                           <Button
                                             variant="danger"
                                             onClick={() => handleReject(institution.id)}
-                                            disabled={!comment.trim()}
+                                            disabled={!comment.trim() || !!approvalLoading || !!rejectionLoading}
                                           >
-                                            Confirm Rejection
+                                            {rejectionLoading === institution.id ? 'Rejecting...' : 'Confirm Rejection'}
                                           </Button>
                                         </div>
                                       </div>
@@ -494,19 +620,25 @@ const InstitutionApproval: React.FC = () => {
                                       </div>
                                     </div>
                                     <div className="mt-6 flex justify-end space-x-3">
-                                      <Button
-                                        variant="danger"
-                                        onClick={() => setShowRejectReason(true)}
-                                      >
-                                        <XCircle className="h-4 w-4 mr-2" />
-                                        Reject
-                                      </Button>
-                                      <Button
-                                        onClick={() => handleApprove(institution.id)}
-                                      >
-                                        <CheckCircle className="h-4 w-4 mr-2" />
-                                        Approve Application
-                                      </Button>
+                                      {institution.status === 'pending' && (
+                                        <>
+                                          <Button
+                                            variant="danger"
+                                            onClick={() => setShowRejectReason(true)}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
+                                          >
+                                            <XCircle className="h-4 w-4 mr-2" />
+                                            {rejectionLoading === institution.id ? 'Rejecting...' : 'Reject'}
+                                          </Button>
+                                          <Button
+                                            onClick={() => handleApprove(institution.id)}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
+                                          >
+                                            <CheckCircle className="h-4 w-4 mr-2" />
+                                            {approvalLoading === institution.id ? 'Approving...' : 'Approve Application'}
+                                          </Button>
+                                        </>
+                                      )}
                                     </div>
                                     {showRejectReason && (
                                       <div className="mt-4">
@@ -523,15 +655,16 @@ const InstitutionApproval: React.FC = () => {
                                               setShowRejectReason(false);
                                               setComment('');
                                             }}
+                                            disabled={!!approvalLoading || !!rejectionLoading}
                                           >
                                             Cancel
                                           </Button>
                                           <Button
                                             variant="danger"
                                             onClick={() => handleReject(institution.id)}
-                                            disabled={!comment.trim()}
+                                            disabled={!comment.trim() || !!approvalLoading || !!rejectionLoading}
                                           >
-                                            Confirm Rejection
+                                            {rejectionLoading === institution.id ? 'Rejecting...' : 'Confirm Rejection'}
                                           </Button>
                                         </div>
                                       </div>
@@ -545,6 +678,7 @@ const InstitutionApproval: React.FC = () => {
                                     <Button
                                       variant="outline"
                                       onClick={() => setCurrentStep(prev => prev - 1)}
+                                      disabled={!!approvalLoading || !!rejectionLoading}
                                     >
                                       Previous
                                     </Button>

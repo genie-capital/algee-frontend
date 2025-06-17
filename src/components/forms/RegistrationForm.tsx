@@ -348,25 +348,60 @@ const RegistrationForm = () => {
   };
   
   const validationRules = {
-    businessName: [required('Business name is required')],
-    registrationNumber: [required('Registration number is required')],
+    businessName: [
+      required('Business name is required'),
+      minLength(2, 'Business name must be at least 2 characters')
+    ],
+    registrationNumber: [
+      required('Registration number is required'),
+      matches(/^[A-Z0-9-]+$/, 'Registration number must contain only uppercase letters, numbers, and hyphens')
+    ],
     institutionType: [required('Institution type is required')],
-    authorizationNumber: [required('Authorization number is required')],
-    'address.country': [],
-    'address.state': [],
-    'address.city': [],
-    'address.street': [],
-    phoneNumber: [required('Phone number is required')],
-    firstName: [required('First name is required')],
-    lastName: [required('Last name is required')],
-    jobTitle: [required('Job title is required')],
-    email: [required('Email is required'), email()],
-    directPhone: [required('Direct phone number is required')],
-    username: [required('Username is required'), minLength(5, 'Username must be at least 5 characters')],
+    authorizationNumber: [
+      required('Authorization number is required'),
+      matches(/^[A-Z0-9-]+$/, 'Authorization number must contain only uppercase letters, numbers, and hyphens')
+    ],
+    'address.country': [required('Country is required')],
+    'address.state': [required('State/Province is required')],
+    'address.city': [required('City is required')],
+    'address.street': [required('Street address is required')],
+    phoneNumber: [
+      required('Phone number is required'),
+      matches(/^\+?[0-9\s-()]+$/, 'Please enter a valid phone number')
+    ],
+    website: [
+      matches(/^$|^https?:\/\/.+/, 'Please enter a valid website URL starting with http:// or https://')
+    ],
+    firstName: [
+      required('First name is required'),
+      minLength(2, 'First name must be at least 2 characters')
+    ],
+    lastName: [
+      required('Last name is required'),
+      minLength(2, 'Last name must be at least 2 characters')
+    ],
+    jobTitle: [
+      required('Job title is required'),
+      minLength(2, 'Job title must be at least 2 characters')
+    ],
+    email: [
+      required('Email is required'),
+      email()
+    ],
+    directPhone: [
+      required('Direct phone number is required'),
+      matches(/^\+?[0-9\s-()]+$/, 'Please enter a valid phone number')
+    ],
+    username: [
+      required('Username is required'),
+      minLength(5, 'Username must be at least 5 characters'),
+      matches(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens')
+    ],
     password: [
       required('Password is required'),
       minLength(8, 'Password must be at least 8 characters'),
       matches(/[A-Z]/, 'Password must include at least one uppercase letter'),
+      matches(/[a-z]/, 'Password must include at least one lowercase letter'),
       matches(/[0-9]/, 'Password must include at least one number'),
       matches(/[^A-Za-z0-9]/, 'Password must include at least one special character')
     ],
@@ -389,6 +424,7 @@ const RegistrationForm = () => {
   } = useForm<FormData>(initialFormData, validationRules);
 
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
 
   const onSubmit = async () => {
     try {
@@ -410,7 +446,7 @@ const RegistrationForm = () => {
           countryCode: formData.address.countryCode
         },
         phoneNumber: formData.phoneNumber,
-        website: formData.website || undefined, // Only include if not empty
+        website: formData.website || undefined,
         adminInfo: {
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -444,14 +480,27 @@ const RegistrationForm = () => {
       
       await register(institutionData);
       
-      // Show success message
-      alert('Registration successful! Your account is pending approval. You will receive an email once approved.');
+      // Show success message with more details
+      alert(
+        'Registration successful!\n\n' +
+        'Your account is pending approval. You will receive an email at ' + formData.email + 
+        ' once your account is approved.\n\n' +
+        'Please keep your registration number (' + formData.registrationNumber + 
+        ') for future reference.'
+      );
       
       // Redirect to login page
       navigate('/');
     } catch (err: any) {
       console.error('Registration error:', err);
-      // Error is handled by the auth context
+      // Show more specific error messages
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('Registration failed. Please try again.');
+      }
     }
   };
 
