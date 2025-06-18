@@ -3,7 +3,7 @@ import { PlusIcon, EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon, ChevronDow
 import Button from '../../components/common/Button';
 import AdminNavbar from '../../components/admin/AdminNavbar';
 import BackToDashboard from '../../components/admin/BackToDashboard';
-import axios from 'axios';
+import { getAllInstitutions, updateInstitutionStatus, deactivateInstitution } from '../../services/auth';
 
 interface Institution {
   id: string;
@@ -51,47 +51,39 @@ const UserManagement = () => {
   const fetchInstitutions = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/institution/getAllInstitutions', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const institutionsData = await getAllInstitutions();
 
-      if (response.data.success) {
-        // Transform the API response to match our Institution interface
-        const transformedInstitutions = response.data.data.map((inst: any) => ({
-          id: inst.id.toString(),
-          name: inst.name,
+      // Transform the API response to match our Institution interface
+      const transformedInstitutions = institutionsData.map((inst: any) => ({
+        id: inst.id.toString(),
+        name: inst.name,
+        email: inst.email,
+        institution: inst.name,
+        role: 'Institution Admin',
+        status: inst.is_active ? 'active' : 'inactive',
+        registrationNumber: `REG-${inst.id}`,
+        institutionType: 'bank', // Default value, update based on your needs
+        authorizationNumber: `AUTH-${inst.id}`,
+        address: {
+          street: 'N/A',
+          city: 'N/A',
+          state: 'N/A',
+          country: 'N/A'
+        },
+        phoneNumber: 'N/A',
+        website: 'N/A',
+        registrationDate: new Date(inst.createdAt).toISOString().split('T')[0],
+        adminInfo: {
+          firstName: 'N/A',
+          lastName: 'N/A',
+          jobTitle: 'N/A',
           email: inst.email,
-          institution: inst.name,
-          role: 'Institution Admin',
-          status: inst.is_active ? 'active' : 'inactive',
-          registrationNumber: `REG-${inst.id}`,
-          institutionType: 'bank', // Default value, update based on your needs
-          authorizationNumber: `AUTH-${inst.id}`,
-          address: {
-            street: 'N/A',
-            city: 'N/A',
-            state: 'N/A',
-            country: 'N/A'
-          },
-          phoneNumber: 'N/A',
-          website: 'N/A',
-          registrationDate: new Date(inst.createdAt).toISOString().split('T')[0],
-          adminInfo: {
-            firstName: 'N/A',
-            lastName: 'N/A',
-            jobTitle: 'N/A',
-            email: inst.email,
-            directPhone: 'N/A'
-          }
-        }));
-        setInstitutions(transformedInstitutions);
-      } else {
-        setError('Failed to fetch institutions');
-      }
+          directPhone: 'N/A'
+        }
+      }));
+      setInstitutions(transformedInstitutions);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institutions');
+      setError(err.message || 'Failed to fetch institutions');
     } finally {
       setLoading(false);
     }
@@ -103,22 +95,10 @@ const UserManagement = () => {
       
       if (newStatus === 'inactive') {
         // Call deactivate endpoint
-        await axios.post(`/api/institution/deactivate/${id}`, {}, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
+        await deactivateInstitution(id);
       } else {
-        // Call update endpoint to reactivate
-        await axios.put(`/api/institution/update/${id}`, {
-          email: institutions.find(inst => inst.id === id)?.email,
-          password: 'dummyPassword', // You might want to handle this differently
-          is_active: true
-        }, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
+        // Call update status endpoint to reactivate
+        await updateInstitutionStatus(id, true);
       }
 
       // Update local state
@@ -130,7 +110,7 @@ const UserManagement = () => {
         )
       );
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update institution status');
+      setError(err.message || 'Failed to update institution status');
     }
   };
 

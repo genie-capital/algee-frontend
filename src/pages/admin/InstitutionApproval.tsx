@@ -23,8 +23,7 @@ import {
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import ErrorAlert from '../../components/common/ErrorAlert';
-import api from '../../services/api';
-import { API_BASE_URL } from '../../config';
+import { getAllInstitutions, updateInstitutionStatus } from '../../services/auth';
 import AdminNavbar from '../../components/admin/AdminNavbar';
 import BackToDashboard from '../../components/admin/BackToDashboard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -97,20 +96,53 @@ const InstitutionApproval: React.FC = () => {
 
   useEffect(() => {
     fetchInstitutions();
-  }, [filterStatus]);
+  }, []);
 
   const fetchInstitutions = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get(`${API_BASE_URL}/institutions/${filterStatus}`);
-      if (response.data.success) {
-        setInstitutions(response.data.data);
-      } else {
-        setError('Failed to fetch institutions');
-      }
+      const institutionsData = await getAllInstitutions();
+      
+      // Transform the API data to match our interface
+      const transformedInstitutions = institutionsData.map((inst: any) => ({
+        id: inst.id.toString(),
+        name: inst.name,
+        type: 'Financial Institution', // Default type
+        registrationNumber: `REG-${inst.id}`,
+        registrationDate: new Date(inst.createdAt).toISOString().split('T')[0],
+        status: inst.is_active ? 'approved' : 'pending', // Map is_active to status
+        verificationStatus: inst.is_active ? 'verified' : 'pending',
+        authorizationNumber: `AUTH-${inst.id}`,
+        address: {
+          street: 'N/A',
+          city: 'N/A',
+          state: 'N/A',
+          country: 'N/A'
+        },
+        phoneNumber: 'N/A',
+        website: 'N/A',
+        adminInfo: {
+          firstName: 'N/A',
+          lastName: 'N/A',
+          jobTitle: 'N/A',
+          email: inst.email,
+          directPhone: 'N/A',
+          address: {
+            street: 'N/A',
+            city: 'N/A',
+            state: 'N/A',
+            country: 'N/A'
+          }
+        },
+        username: inst.email,
+        enableTwoFactor: false,
+        acceptMarketing: false
+      }));
+      
+      setInstitutions(transformedInstitutions);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch institutions');
+      setError(err.message || 'Failed to fetch institutions');
     } finally {
       setLoading(false);
     }
@@ -121,19 +153,15 @@ const InstitutionApproval: React.FC = () => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const response = await api.put(`${API_BASE_URL}/institutions/${id}/approve`);
-      if (response.data.success) {
-        await fetchInstitutions();
-        setSelectedInstitution(null);
-        setComment('');
-        setSuccessMessage('Institution approved successfully');
-        // Auto-hide success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        setError(response.data.message || 'Failed to approve institution');
-      }
+      await updateInstitutionStatus(id, true);
+      await fetchInstitutions();
+      setSelectedInstitution(null);
+      setComment('');
+      setSuccessMessage('Institution approved successfully');
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to approve institution');
+      setError(err.message || 'Failed to approve institution');
     } finally {
       setApprovalLoading(null);
     }
@@ -149,24 +177,19 @@ const InstitutionApproval: React.FC = () => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const response = await api.put(`${API_BASE_URL}/institutions/${id}/reject`, {
-        reason: comment
-      });
+      // For rejection, we deactivate the institution
+      await updateInstitutionStatus(id, false);
       
-      if (response.data.success) {
-        await fetchInstitutions();
-        setSelectedInstitution(null);
-        setComment('');
-        setError(null);
-        setShowRejectReason(false);
-        setSuccessMessage('Institution rejected successfully');
-        // Auto-hide success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        setError(response.data.message || 'Failed to reject institution');
-      }
+      await fetchInstitutions();
+      setSelectedInstitution(null);
+      setComment('');
+      setError(null);
+      setShowRejectReason(false);
+      setSuccessMessage('Institution rejected successfully');
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to reject institution');
+      setError(err.message || 'Failed to reject institution');
     } finally {
       setRejectionLoading(null);
     }
@@ -180,13 +203,18 @@ const InstitutionApproval: React.FC = () => {
     setError(null);
   };
 
-  const filteredInstitutions = institutions.filter(inst => 
-    inst.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inst.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inst.adminInfo.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inst.adminInfo.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inst.adminInfo.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredInstitutions = institutions.filter(inst => {
+    const matchesSearch = inst.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         inst.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         inst.adminInfo.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         inst.adminInfo.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         inst.adminInfo.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filter by status
+    const matchesStatus = filterStatus === 'all' || inst.status === filterStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const steps = ['Institution Information', 'Primary Administrator', 'Account Security', 'Terms & Compliance'];
 

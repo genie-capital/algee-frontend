@@ -65,6 +65,7 @@ const Login = () => {
     setIsSubmitting(true);
     
     try {
+      // Call the login function from AuthContext with isAdmin=false (institution login)
       await login(formData.email, formData.password, false);
       // Navigation is handled in the useEffect
     } catch (err) {

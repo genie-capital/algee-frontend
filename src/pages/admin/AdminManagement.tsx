@@ -1,41 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, EditIcon, TrashIcon, XIcon } from 'lucide-react';
 import Button from '../../components/common/Button';
-import api from '../../services/api';
-import { API_BASE_URL } from '../../config';
+import { createAdmin, getAllAdmins, updateAdmin, deactivateAdmin } from '../../services/auth';
 
 // Define interfaces for data structures
 interface Admin {
   id: string;
   name: string;
   email: string;
+  password?: string;
   is_active: boolean;
   createdAt: string;
   updatedAt: string;
 }
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-}
-
-// Type guard functions to validate API responses
-const isAdmin = (obj: any): obj is Admin => {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof obj.id === 'string' &&
-    typeof obj.name === 'string' &&
-    typeof obj.email === 'string' &&
-    typeof obj.is_active === 'boolean' &&
-    typeof obj.createdAt === 'string'
-  );
-};
-
-const isAdminArray = (arr: any): arr is Admin[] => {
-  return Array.isArray(arr) && arr.every(isAdmin);
-};
 
 const AdminManagement = () => {
   const [admins, setAdmins] = useState<Admin[]>([]);
@@ -67,20 +44,12 @@ const AdminManagement = () => {
   const fetchAdmins = async (): Promise<void> => {
     setLoading(true);
     try {
-      const response = await api.post(`${API_BASE_URL}/admin/getAllAdmins`);
-      
-      // Type-safe response validation
-      const responseData = response.data as ApiResponse<unknown>;
-      
-      if (responseData.success && isAdminArray(responseData.data)) {
-        setAdmins(responseData.data);
-        setError('');
-      } else {
-        setError('Invalid response format or failed to fetch admins');
-      }
-    } catch (err) {
+      const adminsData = await getAllAdmins();
+      setAdmins(adminsData);
+      setError('');
+    } catch (err: any) {
       console.error('Error fetching admins:', err);
-      setError('An error occurred while fetching admins');
+      setError(err.message || 'An error occurred while fetching admins');
     } finally {
       setLoading(false);
     }
@@ -88,54 +57,44 @@ const AdminManagement = () => {
 
   const handleCreateAdmin = async (adminData: Partial<Admin>): Promise<void> => {
     try {
-      const response = await api.post(`${API_BASE_URL}/admin/create`, adminData);
-      const responseData = response.data as ApiResponse<unknown>;
-      
-      if (responseData.success) {
-        fetchAdmins(); // Refresh the list
-        setShowCreateModal(false);
-        resetForm();
-      } else {
-        setError(responseData.message ?? 'Failed to create admin');
-      }
-    } catch (err) {
+      await createAdmin({
+        name: adminData.name || '',
+        email: adminData.email || '',
+        password: (adminData as any).password || ''
+      });
+      fetchAdmins(); // Refresh the list
+      setShowCreateModal(false);
+      resetForm();
+    } catch (err: any) {
       console.error('Error creating admin:', err);
-      setError('An error occurred while creating admin');
+      setError(err.message || 'An error occurred while creating admin');
     }
   };
 
   const handleUpdateAdmin = async (id: string, adminData: Partial<Admin>): Promise<void> => {
     try {
-      const response = await api.put(`${API_BASE_URL}/admin/update/${id}`, adminData);
-      const responseData = response.data as ApiResponse<unknown>;
-      
-      if (responseData.success) {
-        fetchAdmins(); // Refresh the list
-        setShowEditModal(false);
-        resetForm();
-      } else {
-        setError(responseData.message ?? 'Failed to update admin');
-      }
-    } catch (err) {
+      await updateAdmin(id, {
+        name: adminData.name,
+        email: adminData.email || '',
+        password: (adminData as any).password || ''
+      });
+      fetchAdmins(); // Refresh the list
+      setShowEditModal(false);
+      resetForm();
+    } catch (err: any) {
       console.error('Error updating admin:', err);
-      setError('An error occurred while updating admin');
+      setError(err.message || 'An error occurred while updating admin');
     }
   };
 
   const handleDeactivateAdmin = async (id: string): Promise<void> => {
     if (window.confirm('Are you sure you want to deactivate this admin?')) {
       try {
-        const response = await api.delete(`${API_BASE_URL}/admin/deactivate/${id}`);
-        const responseData = response.data as ApiResponse<unknown>;
-        
-        if (responseData.success) {
-          fetchAdmins(); // Refresh the list
-        } else {
-          setError(responseData.message ?? 'Failed to deactivate admin');
-        }
-      } catch (err) {
+        await deactivateAdmin(id);
+        fetchAdmins(); // Refresh the list
+      } catch (err: any) {
         console.error('Error deactivating admin:', err);
-        setError('An error occurred while deactivating admin');
+        setError(err.message || 'An error occurred while deactivating admin');
       }
     }
   };

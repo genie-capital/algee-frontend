@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loginAdmin, loginInstitution, registerInstitution } from '../services/auth';
 import api from '../services/api';
 
 // Add to User type
@@ -32,41 +33,6 @@ type AuthContextType = {
   register: (institutionData: Record<string, any>) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (userData: Partial<User>) => Promise<void>;
-};
-
-// Hardcoded credentials for development
-const DEV_MODE = true; // Set to false in production
-
-const ADMIN_CREDENTIALS = {
-  email: 'admin@algee.com',
-  password: 'Admin123!',
-  userData: {
-    id: 1,
-    name: 'System Administrator',
-    email: 'admin@algee.com',
-    is_admin: true,
-    is_active: true,
-    role: 'admin',
-    permissions: ['all'],
-    institutionId: 0 // Admin has no institution
-  }
-};
-
-const INSTITUTION_CREDENTIALS = {
-  email: 'institution@example.com',
-  password: 'Password123!',
-  userData: {
-    id: 2,
-    name: 'Test Institution',
-    email: 'institution@example.com',
-    is_admin: false,
-    is_active: true,
-    institutionName: 'Example Bank',
-    institutionLogo: '/logo.png',
-    role: 'institution_admin',
-    permissions: ['manage_institution'],
-    institutionId: 1 // Test institution ID
-  }
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -116,32 +82,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
         
-        // In DEV_MODE, set user based on stored credentials
-        if (DEV_MODE) {
-          if (isAdmin) {
-            setUser(ADMIN_CREDENTIALS.userData);
-          } else {
-            setUser(INSTITUTION_CREDENTIALS.userData);
-          }
-          setLoading(false);
-          return;
-        }
-        
         // Validate token with the server and get user profile
         try {
-          const response = await api.get(isAdmin ? '/api/admin/update/{id}' : '/api/institution/update/{id}');
-          if (response.data) {
+          // For now, we'll set basic user data based on stored flags
+          // In a real implementation, you'd validate the token with the server
+          if (isAdmin) {
             setUser({
-              id: response.data.id,
-              name: response.data.name,
-              email: response.data.email,
-              is_admin: isAdmin,
-              is_active: response.data.is_active || true,
-              institutionName: isInstitution ? response.data.name : undefined,
-              institutionLogo: isInstitution ? response.data.logo : undefined,
-              role: isAdmin ? 'admin' : 'institution_admin',
-              permissions: isAdmin ? ['all'] : ['manage_institution'],
-              institutionId: isAdmin ? 0 : response.data.institutionId
+              id: 1,
+              name: 'System Administrator',
+              email: 'admin@algee.com',
+              is_admin: true,
+              is_active: true,
+              role: 'admin',
+              permissions: ['all'],
+              institutionId: 0
+            });
+          } else {
+            setUser({
+              id: 2,
+              name: 'Institution User',
+              email: 'institution@example.com',
+              is_admin: false,
+              is_active: true,
+              institutionName: 'Example Institution',
+              institutionLogo: '/logo.png',
+              role: 'institution_admin',
+              permissions: ['manage_institution'],
+              institutionId: 1
             });
           }
         } catch (profileError) {
@@ -171,80 +138,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // In development mode, check against hardcoded credentials
-      if (DEV_MODE) {
-        // Check admin credentials
-        if (isAdmin && 
-            email === ADMIN_CREDENTIALS.email && 
-            password === ADMIN_CREDENTIALS.password) {
-          
-          // Set mock token and flags
-          sessionStorage.setItem('token', 'dev-admin-token');
-          sessionStorage.setItem('adminAuthenticated', 'true');
-          
-          // Set user data
-          setUser(ADMIN_CREDENTIALS.userData);
-          
-          // Navigate to admin dashboard
-          navigate('/admin/dashboard');
-          setLoading(false);
-          return;
-        }
-        
-        // Check institution credentials
-        if (!isAdmin && 
-            email === INSTITUTION_CREDENTIALS.email && 
-            password === INSTITUTION_CREDENTIALS.password) {
-          
-          // Set mock token and flags
-          sessionStorage.setItem('token', 'dev-institution-token');
-          sessionStorage.setItem('userLoggedIn', 'true');
-          
-          // Set user data
-          setUser(INSTITUTION_CREDENTIALS.userData);
-          
-          // Navigate to institution dashboard
-          navigate('/workspace-dashboard');
-          setLoading(false);
-          return;
-        }
-        
-        // Invalid credentials
-        setError('Invalid email or password');
-        setLoading(false);
-        return;
+      let response;
+      if (isAdmin) {
+        response = await loginAdmin(email, password);
+      } else {
+        response = await loginInstitution(email, password);
       }
       
-      // Production mode - make API call
-      const response = await api.post(isAdmin ? '/api/admin/login' : '/api/institution/login', {
-        email,
-        password
+      // Set user data based on response
+      setUser({
+        id: response.id || (isAdmin ? 1 : 2),
+        name: response.name || (isAdmin ? 'System Administrator' : 'Institution User'),
+        email: email,
+        is_admin: isAdmin,
+        is_active: response.is_active || true,
+        institutionName: !isAdmin ? response.name : undefined,
+        institutionLogo: !isAdmin ? response.logo : undefined,
+        role: isAdmin ? 'admin' : 'institution_admin',
+        permissions: isAdmin ? ['all'] : ['manage_institution'],
+        institutionId: isAdmin ? 0 : response.institutionId || 1
       });
       
-      if (response.data.token) {
-        // Store token and authentication flags
-        sessionStorage.setItem('token', response.data.token);
-        sessionStorage.setItem(isAdmin ? 'adminAuthenticated' : 'userLoggedIn', 'true');
-        
-        // Set user data
-        setUser({
-          id: response.data.id,
-          name: response.data.name,
-          email: response.data.email,
-          is_admin: isAdmin,
-          is_active: response.data.is_active || true,
-          institutionName: !isAdmin ? response.data.name : undefined,
-          institutionLogo: !isAdmin ? response.data.logo : undefined,
-          role: isAdmin ? 'admin' : 'institution_admin',
-          permissions: isAdmin ? ['all'] : ['manage_institution'],
-          institutionId: isAdmin ? 0 : response.data.institutionId
-        });
-        
-        // Navigate based on user type
-        navigate(isAdmin ? '/admin/dashboard' : '/workspace-dashboard');
-      }
+      // Navigate based on user type
+      navigate(isAdmin ? '/admin/dashboard' : '/workspace-dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -273,30 +191,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // In development mode, simulate successful registration
-      if (DEV_MODE) {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        // Success - no need to do anything else
-        return;
-      }
-      
-      // Normal API call for production
-      const response = await api.post('/api/institution/create', institutionData);
-      
-      if (response.data.success) {
-        // Registration successful
-        return response.data;
-      } else {
-        // Handle API error response
-        const errorMessage = response.data.message || 'Registration failed. Please try again.';
-        setError(errorMessage);
-        throw new Error(errorMessage);
-      }
+      const response = await registerInstitution(institutionData);
+      // Registration successful - no need to do anything else
+      return response;
     } catch (err: any) {
-      // Handle network errors or API errors
-      const errorMessage = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
-      setError(errorMessage);
+      setError(err.message || 'Registration failed. Please try again.');
       throw err;
     } finally {
       setLoading(false);
@@ -308,15 +207,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // In development mode, simulate successful password reset
-      if (DEV_MODE) {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        // Success - no need to do anything else
-        return;
-      }
-      
-      // Normal API call for production
+      // This endpoint doesn't exist in the current API docs
+      // You'll need to implement this when the backend provides it
       await api.post('/reset-password', { email });
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Password reset failed. Please try again.';
@@ -332,16 +224,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // In development mode, simulate successful profile update
-      if (DEV_MODE) {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        // Update user data directly
-        setUser(prev => prev ? { ...prev, ...userData } : null);
-        return;
-      }
-      
-      // Normal API call for production
+      // This endpoint doesn't exist in the current API docs
+      // You'll need to implement this when the backend provides it
       const response = await api.put('/user/profile', userData);
       setUser(prev => prev ? { ...prev, ...response.data } : null);
     } catch (err: any) {
