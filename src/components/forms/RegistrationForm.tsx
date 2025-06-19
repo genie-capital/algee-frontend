@@ -427,6 +427,7 @@ const RegistrationForm = () => {
   const [error, setError] = useState('');
 
   const onSubmit = async () => {
+    console.log('SUBMITTING...');
     try {
       // Transform formData to match API expectations
       const institutionData = {
@@ -536,7 +537,7 @@ const RegistrationForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit, () => setError('Please fill all required fields correctly.'))} className="space-y-6">
         {currentStep === 1 && (
           <div className="space-y-6">
             <div>
