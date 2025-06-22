@@ -2,7 +2,7 @@ import api from "./api";
 
 export const loginAdmin = async (email: string, password: string) => {
   try {
-    const response = await api.post('/api/admin/login', { email, password });
+    const response = await api.post('/admin/login', { email, password });
     
     if (response.data.success && response.data.token) {
       sessionStorage.setItem('token', response.data.token);
@@ -21,7 +21,7 @@ export const loginAdmin = async (email: string, password: string) => {
 
 export const loginInstitution = async (email: string, password: string) => {
   try {
-    const response = await api.post('/api/institution/login', { email, password });
+    const response = await api.post('/institution/login', { email, password });
     
     if (response.data.success && response.data.token) {
       sessionStorage.setItem('token', response.data.token);
@@ -40,7 +40,7 @@ export const loginInstitution = async (email: string, password: string) => {
 
 export const registerInstitution = async (institutionData: Record<string, any>) => {
   try {
-    const response = await api.post('/api/institution/create', institutionData);
+    const response = await api.post('/institution/create', institutionData);
     
     if (response.data.success) {
       return response.data;
@@ -58,7 +58,7 @@ export const registerInstitution = async (institutionData: Record<string, any>) 
 // Admin management functions
 export const createAdmin = async (adminData: { name: string; email: string; password: string }) => {
   try {
-    const response = await api.post('/api/admin/create', adminData);
+    const response = await api.post('/admin/create', adminData);
     
     if (response.data.success) {
       return response.data;
@@ -75,7 +75,7 @@ export const createAdmin = async (adminData: { name: string; email: string; pass
 
 export const getAllAdmins = async () => {
   try {
-    const response = await api.get('/api/admin/getAllAdmins');
+    const response = await api.get('/admin/getAllAdmins');
     
     if (response.data.success) {
       return response.data.data;
@@ -92,7 +92,7 @@ export const getAllAdmins = async () => {
 
 export const updateAdmin = async (id: string, adminData: { name?: string; email: string; password: string }) => {
   try {
-    const response = await api.put(`/api/admin/update/${id}`, adminData);
+    const response = await api.put(`/admin/update/${id}`, adminData);
     
     if (response.data.success) {
       return response.data;
@@ -109,7 +109,7 @@ export const updateAdmin = async (id: string, adminData: { name?: string; email:
 
 export const deactivateAdmin = async (id: string) => {
   try {
-    const response = await api.delete(`/api/admin/deactivate/${id}`);
+    const response = await api.delete(`/admin/deactivate/${id}`);
     
     if (response.data.success) {
       return response.data;
@@ -126,7 +126,7 @@ export const deactivateAdmin = async (id: string) => {
 
 export const updateAdminStatus = async (id: string, isActive: boolean) => {
   try {
-    const response = await api.patch(`/api/admin/update-admin-status/${id}`, { is_active: isActive });
+    const response = await api.patch(`/admin/update-admin-status/${id}`, { is_active: isActive });
     
     if (response.data.success) {
       return response.data;
@@ -144,7 +144,7 @@ export const updateAdminStatus = async (id: string, isActive: boolean) => {
 // Institution management functions
 export const getAllInstitutions = async () => {
   try {
-    const response = await api.get('/api/institution/getAllInstitutions');
+    const response = await api.get('/institution/getAllInstitutions');
     
     if (response.data.success) {
       return response.data.data;
@@ -161,7 +161,7 @@ export const getAllInstitutions = async () => {
 
 export const updateInstitution = async (id: string, institutionData: { name?: string; email: string; password: string }) => {
   try {
-    const response = await api.put(`/api/institution/update/${id}`, institutionData);
+    const response = await api.put(`/institution/update/${id}`, institutionData);
     
     if (response.data.success) {
       return response.data;
@@ -178,7 +178,7 @@ export const updateInstitution = async (id: string, institutionData: { name?: st
 
 export const deactivateInstitution = async (id: string) => {
   try {
-    const response = await api.post(`/api/institution/deactivate/${id}`);
+    const response = await api.post(`/institution/deactivate/${id}`);
     
     if (response.data.success) {
       return response.data;
@@ -195,7 +195,7 @@ export const deactivateInstitution = async (id: string) => {
 
 export const updateInstitutionStatus = async (id: string, isActive: boolean) => {
   try {
-    const response = await api.patch(`/api/admin/update-institution-status/${id}`, { is_active: isActive });
+    const response = await api.patch(`/admin/update-institution-status/${id}`, { is_active: isActive });
     
     if (response.data.success) {
       return response.data;
