@@ -150,10 +150,17 @@ const Login = () => {
           </div>
           <button 
             type="submit" 
-            className="w-full px-4 py-3 text-white bg-[#07002F] rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[#008401] focus:ring-opacity-50 transition duration-200"
+            className="w-full px-4 py-3 text-white bg-[#07002F] rounded-md hover:bg-[#05001a] focus:outline-none focus:ring-2 focus:ring-[#07002F] focus:ring-opacity-50 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isSubmitting}
           >
-            {isSubmitting ? <LoadingSpinner size="small" text="" /> : 'Sign In'}
+            {isSubmitting ? (
+              <div className="flex items-center justify-center">
+                <LoadingSpinner size="small" />
+                <span className="ml-2">Signing in...</span>
+              </div>
+            ) : (
+              'Sign In'
+            )}
           </button>
         </form>
         <div className="mt-8 text-center">

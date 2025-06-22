@@ -5,15 +5,16 @@ import Logo from '../../components/common/Logo';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorAlert from '../../components/common/ErrorAlert';
-import { validateForm, required } from '../../utils/validation';
+import { validateForm, required, email } from '../../utils/validation';
 
 const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: ''
   });
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { login, error, clearError, isAuthenticated, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ const AdminLogin = () => {
 
   const validateFormData = () => {
     const rules = {
-      username: [required('Username is required')],
+      email: [required('Email is required'), email()],
       password: [required('Password is required')]
     };
     
@@ -58,16 +59,24 @@ const AdminLogin = () => {
     // Validate form
     if (!validateFormData()) return;
     
+    setIsSubmitting(true);
+    
     try {
       // Call the login function from AuthContext with isAdmin=true
-      // Note: The API expects 'email' but the form field is named 'username'
-      await login(formData.username, formData.password, true);
+      await login(formData.email, formData.password, true);
       // Navigation is handled in the useEffect
     } catch (err) {
       // Error is handled by the auth context
-      console.error('Login error:', err);
+      console.error('Admin login error:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  // Show loading spinner while checking auth status
+  if (loading) {
+    return <LoadingSpinner fullScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -89,24 +98,26 @@ const AdminLogin = () => {
           
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Admin Email
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Administrator Email
               </label>
               <div className="mt-1">
                 <input
-                  id="username"
-                  name="username"
-                  placeholder="Enter your admin email"
-                  type="text"
-                  required
-                  value={formData.username}
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={formData.email}
                   onChange={handleChange}
-                  className={`appearance-none block w-full px-3 py-2 border ${formErrors.username ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#07002F] focus:border-[#07002F] sm:text-sm`}
+                  className={`appearance-none block w-full px-3 py-2 border ${
+                    formErrors.email ? 'border-red-500' : 'border-gray-300'
+                  } rounded-md placeholder-gray-400 focus:outline-none focus:ring-[#07002F] focus:border-[#07002F] sm:text-sm`}
+                  placeholder="admin@example.com"
                 />
+                {formErrors.email && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+                )}
               </div>
-              {formErrors.username && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.username}</p>
-              )}
             </div>
 
             <div>
@@ -118,31 +129,45 @@ const AdminLogin = () => {
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
-                  required
+                  autoComplete="current-password"
                   value={formData.password}
                   onChange={handleChange}
-                  className={`appearance-none block w-full px-3 py-2 border ${formErrors.password ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#07002F] focus:border-[#07002F] sm:text-sm`}
+                  className={`appearance-none block w-full px-3 py-2 pr-10 border ${
+                    formErrors.password ? 'border-red-500' : 'border-gray-300'
+                  } rounded-md placeholder-gray-400 focus:outline-none focus:ring-[#07002F] focus:border-[#07002F] sm:text-sm`}
+                  placeholder="Enter your password"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
+                  {showPassword ? (
+                    <EyeOffIcon className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                  )}
                 </button>
+                {formErrors.password && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.password}</p>
+                )}
               </div>
-              {formErrors.password && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.password}</p>
-              )}
             </div>
 
             <div>
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#07002F] hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#008401] disabled:opacity-50"
+                disabled={isSubmitting}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#07002F] hover:bg-[#05001a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#07002F] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? <LoadingSpinner size="small" text="" /> : 'Sign in'}
+                {isSubmitting ? (
+                  <div className="flex items-center">
+                    <LoadingSpinner size="small" />
+                    <span className="ml-2">Signing in...</span>
+                  </div>
+                ) : (
+                  'Sign in as Administrator'
+                )}
               </button>
             </div>
           </form>
@@ -153,12 +178,20 @@ const AdminLogin = () => {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">System Security Notice</span>
+                <span className="px-2 bg-white text-gray-500">
+                  Not an administrator?
+                </span>
               </div>
             </div>
-            <div className="mt-6 text-center text-xs text-gray-500">
-              <p>Unauthorized access is strictly prohibited and may result in legal action.</p>
-              <p className="mt-1">All activities are logged and monitored.</p>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="text-[#008401] hover:text-[#006601] font-medium"
+              >
+                Go to Institution Login
+              </button>
             </div>
           </div>
         </div>
