@@ -23,7 +23,7 @@ import {
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import ErrorAlert from '../../components/common/ErrorAlert';
-import { getAllInstitutions, updateInstitutionStatus } from '../../services/auth';
+import { getAllInstitutions, updateInstitutionStatus, deactivateInstitution } from '../../services/auth';
 import AdminNavbar from '../../components/admin/AdminNavbar';
 import BackToDashboard from '../../components/admin/BackToDashboard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -105,40 +105,49 @@ const InstitutionApproval: React.FC = () => {
       const institutionsData = await getAllInstitutions();
       
       // Transform the API data to match our interface
-      const transformedInstitutions = institutionsData.map((inst: any) => ({
-        id: inst.id.toString(),
-        name: inst.name,
-        type: 'Financial Institution', // Default type
-        registrationNumber: `REG-${inst.id}`,
-        registrationDate: new Date(inst.createdAt).toISOString().split('T')[0],
-        status: inst.is_active ? 'approved' : 'pending', // Map is_active to status
-        verificationStatus: inst.is_active ? 'verified' : 'pending',
-        authorizationNumber: `AUTH-${inst.id}`,
-        address: {
-          street: 'N/A',
-          city: 'N/A',
-          state: 'N/A',
-          country: 'N/A'
-        },
-        phoneNumber: 'N/A',
-        website: 'N/A',
-        adminInfo: {
-          firstName: 'N/A',
-          lastName: 'N/A',
-          jobTitle: 'N/A',
-          email: inst.email,
-          directPhone: 'N/A',
+      const transformedInstitutions = institutionsData.map((inst: any) => {
+        let status = 'pending';
+        if (inst.is_active) {
+          status = 'approved';
+        } else if (inst.createdAt !== inst.updatedAt) {
+          status = 'rejected';
+        }
+
+        return {
+          id: inst.id.toString(),
+          name: inst.name,
+          type: 'Financial Institution', // Default type
+          registrationNumber: `REG-${inst.id}`,
+          registrationDate: new Date(inst.createdAt).toISOString().split('T')[0],
+          status: status,
+          verificationStatus: inst.is_active ? 'verified' : (status === 'rejected' ? 'rejected' : 'pending'),
+          authorizationNumber: `AUTH-${inst.id}`,
           address: {
             street: 'N/A',
             city: 'N/A',
             state: 'N/A',
             country: 'N/A'
-          }
-        },
-        username: inst.email,
-        enableTwoFactor: false,
-        acceptMarketing: false
-      }));
+          },
+          phoneNumber: 'N/A',
+          website: 'N/A',
+          adminInfo: {
+            firstName: 'N/A',
+            lastName: 'N/A',
+            jobTitle: 'N/A',
+            email: inst.email,
+            directPhone: 'N/A',
+            address: {
+              street: 'N/A',
+              city: 'N/A',
+              state: 'N/A',
+              country: 'N/A'
+            }
+          },
+          username: inst.email,
+          enableTwoFactor: false,
+          acceptMarketing: false
+        };
+      });
       
       setInstitutions(transformedInstitutions);
     } catch (err: any) {
@@ -154,7 +163,7 @@ const InstitutionApproval: React.FC = () => {
     setSuccessMessage(null);
     try {
       await updateInstitutionStatus(id, true);
-      await fetchInstitutions();
+      setInstitutions(prev => prev.filter(inst => inst.id !== id));
       setSelectedInstitution(null);
       setComment('');
       setSuccessMessage('Institution approved successfully');
@@ -180,7 +189,7 @@ const InstitutionApproval: React.FC = () => {
       // For rejection, we deactivate the institution
       await updateInstitutionStatus(id, false);
       
-      await fetchInstitutions();
+      setInstitutions(prev => prev.filter(inst => inst.id !== id));
       setSelectedInstitution(null);
       setComment('');
       setError(null);

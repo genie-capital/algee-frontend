@@ -176,9 +176,9 @@ export const updateInstitution = async (id: string, institutionData: { name?: st
   }
 };
 
-export const deactivateInstitution = async (id: string) => {
+export const deactivateInstitution = async (id: string, data: { comment: string }) => {
   try {
-    const response = await api.post(`/institution/deactivate/${id}`);
+    const response = await api.post(`/institution/deactivate/${id}`, data);
     
     if (response.data.success) {
       return response.data;

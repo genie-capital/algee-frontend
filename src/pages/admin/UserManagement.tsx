@@ -95,7 +95,7 @@ const UserManagement = () => {
       
       if (newStatus === 'inactive') {
         // Call deactivate endpoint
-        await deactivateInstitution(id);
+        await deactivateInstitution(id, { comment: 'Deactivated from User Management' });
       } else {
         // Call update status endpoint to reactivate
         await updateInstitutionStatus(id, true);
