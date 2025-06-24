@@ -30,7 +30,6 @@ const CreateParameterModal: React.FC<CreateParameterModalProps> = ({
     description: '',
     recommendedRange: '',
     impact: '',
-    normalizationFormula: '',
     uniqueCode: '',
   });
 
@@ -98,18 +97,6 @@ const CreateParameterModal: React.FC<CreateParameterModalProps> = ({
             </FormControl>
 
             <TextField
-              name="normalizationFormula"
-              label="Normalization Formula"
-              value={formData.normalizationFormula}
-              onChange={handleChange}
-              required
-              fullWidth
-              multiline
-              rows={3}
-              helperText="Enter formula following the normalization guide (e.g., =value/max_value)"
-            />
-
-            <TextField
               name="uniqueCode"
               label="Unique Code"
               value={formData.uniqueCode}
@@ -119,9 +106,6 @@ const CreateParameterModal: React.FC<CreateParameterModalProps> = ({
               helperText="Enter a unique code for this parameter (e.g., 1001)"
             />
 
-            <Typography variant="caption" color="textSecondary">
-              Note: Please refer to the normalization formulas guide for proper formula syntax and examples.
-            </Typography>
           </Box>
         </DialogContent>
         <DialogActions>

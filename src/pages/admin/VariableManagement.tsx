@@ -85,7 +85,7 @@ const VariableManagement: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`/variableCategory/all`, {
+      const response = await fetch(`/api/variableCategory/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -103,7 +103,7 @@ const VariableManagement: React.FC = () => {
 
   const fetchVariables = async () => {
     try {
-      const response = await fetch(`/variable/all`, {
+      const response = await fetch(`/api/variable/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -207,8 +207,8 @@ const VariableManagement: React.FC = () => {
     e.preventDefault();
     try {
       const url = editingVariable
-        ? `/variable/update/${editingVariable.id}`
-        : `/variable/create`;
+        ? `/api/variable/update/${editingVariable.id}`
+        : `/api/variable/create`;
       
       const body: any = {
         name: formData.name,
@@ -261,7 +261,7 @@ const VariableManagement: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this variable?')) return;
     
     try {
-      const response = await fetch(`/variable/delete/${id}`, {
+      const response = await fetch(`/api/variable/delete/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
