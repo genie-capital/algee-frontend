@@ -20,7 +20,6 @@ interface InstitutionParameter {
   description: string;
   recommendedRange: string;
   impact: string;
-  normalizationFormula: string;
   uniqueCode: string;
   isActive: boolean;
 }
@@ -106,18 +105,6 @@ const EditParameterModal: React.FC<EditParameterModalProps> = ({
                 <MenuItem value="low">Low</MenuItem>
               </Select>
             </FormControl>
-
-            <TextField
-              name="normalizationFormula"
-              label="Normalization Formula"
-              value={formData.normalizationFormula}
-              onChange={handleChange}
-              required
-              fullWidth
-              multiline
-              rows={3}
-              helperText="Enter formula following the normalization guide (e.g., =value/max_value)"
-            />
 
             <TextField
               name="uniqueCode"

@@ -2,13 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   IconButton,
   TextField,
   Typography,
@@ -20,7 +17,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   MenuItem,
   Select,
   FormControl,
@@ -40,13 +36,25 @@ interface VariableCategory {
   interestRateWeight: number;
 }
 
+interface CategoryMapping {
+  categoryName: string;
+  numericValue: number | string;
+}
+
 interface Variable {
   id: number;
   name: string;
   description: string;
-  categoryId: number;
-  responseType: string;
-  isMasked: boolean;
+  uniqueCode: number;
+  is_required: boolean;
+  mask: boolean;
+  isUsedInFormula: boolean;
+  min_value: number;
+  max_value: number;
+  responseType: 'int_float' | 'boolean' | 'categorical';
+  normalisationFormula?: string;
+  variableCategoryId: number;
+  variableProportion: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,9 +68,17 @@ const VariableManagement: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    categoryId: '',
+    uniqueCode: '',
+    is_required: true,
+    mask: false,
+    isUsedInFormula: false,
+    min_value: '',
+    max_value: '',
     responseType: '',
-    isMasked: false
+    normalisationFormula: '',
+    variableCategoryId: '',
+    variableProportion: '',
+    categoryMappings: [] as CategoryMapping[]
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -114,18 +130,34 @@ const VariableManagement: React.FC = () => {
       setFormData({
         name: variable.name,
         description: variable.description,
-        categoryId: variable.categoryId.toString(),
+        uniqueCode: String(variable.uniqueCode),
+        is_required: variable.is_required,
+        mask: variable.mask,
+        isUsedInFormula: variable.isUsedInFormula,
+        min_value: String(variable.min_value),
+        max_value: String(variable.max_value),
         responseType: variable.responseType,
-        isMasked: variable.isMasked
+        normalisationFormula: variable.normalisationFormula || '',
+        variableCategoryId: String(variable.variableCategoryId),
+        variableProportion: String(variable.variableProportion),
+        categoryMappings: [] // Note: categoryMappings are not fetched for edit yet
       });
     } else {
       setEditingVariable(null);
       setFormData({
         name: '',
         description: '',
-        categoryId: '',
+        uniqueCode: '',
+        is_required: true,
+        mask: false,
+        isUsedInFormula: false,
+        min_value: '',
+        max_value: '',
         responseType: '',
-        isMasked: false
+        normalisationFormula: '',
+        variableCategoryId: '',
+        variableProportion: '',
+        categoryMappings: []
       });
     }
     setOpenDialog(true);
@@ -137,10 +169,38 @@ const VariableManagement: React.FC = () => {
     setFormData({
       name: '',
       description: '',
-      categoryId: '',
+      uniqueCode: '',
+      is_required: true,
+      mask: false,
+      isUsedInFormula: false,
+      min_value: '',
+      max_value: '',
       responseType: '',
-      isMasked: false
+      normalisationFormula: '',
+      variableCategoryId: '',
+      variableProportion: '',
+      categoryMappings: []
     });
+  };
+
+  const handleAddCategoryMapping = () => {
+    setFormData(prev => ({
+      ...prev,
+      categoryMappings: [...prev.categoryMappings, { categoryName: '', numericValue: '' }]
+    }));
+  };
+
+  const handleRemoveCategoryMapping = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      categoryMappings: prev.categoryMappings.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleCategoryMappingChange = (index: number, field: 'categoryName' | 'numericValue', value: string) => {
+    const newMappings = [...formData.categoryMappings];
+    newMappings[index] = { ...newMappings[index], [field]: value };
+    setFormData(prev => ({ ...prev, categoryMappings: newMappings }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,16 +210,38 @@ const VariableManagement: React.FC = () => {
         ? `${API_BASE_URL}/variable/update/${editingVariable.id}`
         : `${API_BASE_URL}/variable/create`;
       
+      const body: any = {
+        name: formData.name,
+        description: formData.description,
+        uniqueCode: parseInt(formData.uniqueCode),
+        is_required: formData.is_required,
+        mask: formData.mask,
+        isUsedInFormula: formData.isUsedInFormula,
+        min_value: parseFloat(formData.min_value),
+        max_value: parseFloat(formData.max_value),
+        responseType: formData.responseType,
+        variableCategoryId: parseInt(formData.variableCategoryId),
+        variableProportion: parseFloat(formData.variableProportion),
+      };
+
+      if (formData.responseType === 'int_float') {
+        body.normalisationFormula = formData.normalisationFormula;
+      }
+
+      if (formData.responseType === 'categorical') {
+        body.categoryMappings = formData.categoryMappings.map(m => ({
+          ...m,
+          numericValue: parseFloat(String(m.numericValue))
+        }));
+      }
+
       const response = await fetch(url, {
         method: editingVariable ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...formData,
-          categoryId: parseInt(formData.categoryId)
-        })
+        body: JSON.stringify(body)
       });
 
       const data = await response.json();
@@ -237,10 +319,13 @@ const VariableManagement: React.FC = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>Name</TableCell>
-                    <TableCell>Description</TableCell>
                     <TableCell>Category</TableCell>
                     <TableCell>Response Type</TableCell>
                     <TableCell>Masked</TableCell>
+                    <TableCell>Unique Code</TableCell>
+                    <TableCell>Proportion</TableCell>
+                    <TableCell>Min Value</TableCell>
+                    <TableCell>Max Value</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -248,10 +333,13 @@ const VariableManagement: React.FC = () => {
                   {variables.map((variable) => (
                     <TableRow key={variable.id}>
                       <TableCell>{variable.name}</TableCell>
-                      <TableCell>{variable.description}</TableCell>
-                      <TableCell>{getCategoryName(variable.categoryId)}</TableCell>
+                      <TableCell>{getCategoryName(variable.variableCategoryId)}</TableCell>
                       <TableCell>{variable.responseType}</TableCell>
-                      <TableCell>{variable.isMasked ? 'Yes' : 'No'}</TableCell>
+                      <TableCell>{variable.mask ? 'Yes' : 'No'}</TableCell>
+                      <TableCell>{variable.uniqueCode}</TableCell>
+                      <TableCell>{variable.variableProportion}</TableCell>
+                      <TableCell>{variable.min_value}</TableCell>
+                      <TableCell>{variable.max_value}</TableCell>
                       <TableCell>
                         <IconButton onClick={() => handleOpenDialog(variable)}>
                           <PencilIcon size={20} />
@@ -273,62 +361,184 @@ const VariableManagement: React.FC = () => {
             </DialogTitle>
             <form onSubmit={handleSubmit}>
               <DialogContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <TextField
-                    fullWidth
-                    label="Name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                  <TextField
-                    fullWidth
-                    label="Description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    required
-                    multiline
-                    rows={3}
-                  />
-                  <FormControl fullWidth required>
-                    <InputLabel>Category</InputLabel>
-                    <Select
-                      value={formData.categoryId}
-                      label="Category"
-                      onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    >
-                      {categories.map((category) => (
-                        <MenuItem key={category.id} value={category.id}>
-                          {category.name}
-                        </MenuItem>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', mx: -1 }}>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                    <TextField
+                      fullWidth
+                      label="Name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </Box>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                    <TextField
+                      fullWidth
+                      label="Unique Code"
+                      type="number"
+                      value={formData.uniqueCode}
+                      onChange={(e) => setFormData({ ...formData, uniqueCode: e.target.value })}
+                      required
+                    />
+                  </Box>
+                  <Box sx={{ p: 1, width: '100%' }}>
+                    <TextField
+                      fullWidth
+                      label="Description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      required
+                      multiline
+                      rows={3}
+                    />
+                  </Box>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Category</InputLabel>
+                      <Select
+                        value={formData.variableCategoryId}
+                        label="Category"
+                        onChange={(e) => setFormData({ ...formData, variableCategoryId: e.target.value })}
+                      >
+                        {categories.map((category) => (
+                          <MenuItem key={category.id} value={category.id}>
+                            {category.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Response Type</InputLabel>
+                      <Select
+                        value={formData.responseType}
+                        label="Response Type"
+                        onChange={(e) => setFormData({ ...formData, responseType: e.target.value })}
+                      >
+                        <MenuItem value="int_float">Integer/Float</MenuItem>
+                        <MenuItem value="boolean">Boolean</MenuItem>
+                        <MenuItem value="categorical">Categorical</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                    <TextField
+                      fullWidth
+                      label="Min Value"
+                      type="number"
+                      value={formData.min_value}
+                      onChange={(e) => setFormData({ ...formData, min_value: e.target.value })}
+                      required
+                    />
+                  </Box>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                    <TextField
+                      fullWidth
+                      label="Max Value"
+                      type="number"
+                      value={formData.max_value}
+                      onChange={(e) => setFormData({ ...formData, max_value: e.target.value })}
+                      required
+                    />
+                  </Box>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                     <TextField
+                      fullWidth
+                      label="Variable Proportion (%)"
+                      type="number"
+                      value={formData.variableProportion}
+                      onChange={(e) => setFormData({ ...formData, variableProportion: e.target.value })}
+                      required
+                      inputProps={{ min: 0, max: 100 }}
+                    />
+                  </Box>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Is Required?</InputLabel>
+                      <Select
+                        value={String(formData.is_required)}
+                        label="Is Required?"
+                        onChange={(e) => setFormData({ ...formData, is_required: e.target.value === 'true' })}
+                      >
+                        <MenuItem value="true">Yes</MenuItem>
+                        <MenuItem value="false">No</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Masked</InputLabel>
+                      <Select
+                        value={String(formData.mask)}
+                        label="Masked"
+                        onChange={(e) => setFormData({ ...formData, mask: e.target.value === 'true' })}
+                      >
+                        <MenuItem value="true">Yes</MenuItem>
+                        <MenuItem value="false">No</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                  <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Used In Formula?</InputLabel>
+                      <Select
+                        value={String(formData.isUsedInFormula)}
+                        label="Used In Formula?"
+                        onChange={(e) => setFormData({ ...formData, isUsedInFormula: e.target.value === 'true' })}
+                      >
+                        <MenuItem value="true">Yes</MenuItem>
+                        <MenuItem value="false">No</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+
+                  {formData.responseType === 'int_float' && (
+                    <Box sx={{ p: 1, width: '100%' }}>
+                      <TextField
+                        fullWidth
+                        label="Normalization Formula"
+                        value={formData.normalisationFormula}
+                        onChange={(e) => setFormData({ ...formData, normalisationFormula: e.target.value })}
+                        helperText="e.g. value / max_value"
+                      />
+                    </Box>
+                  )}
+
+                  {formData.responseType === 'categorical' && (
+                    <Box sx={{ p: 1, width: '100%' }}>
+                      <Typography variant="h6" gutterBottom>Category Mappings</Typography>
+                      {formData.categoryMappings.map((mapping, index) => (
+                        <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1, mx: -1 }}>
+                          <Box sx={{ width: '41.666%', p: 1 }}>
+                            <TextField
+                              fullWidth
+                              label="Category Name"
+                              value={mapping.categoryName}
+                              onChange={(e) => handleCategoryMappingChange(index, 'categoryName', e.target.value)}
+                            />
+                          </Box>
+                          <Box sx={{ width: '41.666%', p: 1 }}>
+                            <TextField
+                              fullWidth
+                              label="Numeric Value"
+                              type="number"
+                              value={mapping.numericValue}
+                              onChange={(e) => handleCategoryMappingChange(index, 'numericValue', e.target.value)}
+                            />
+                          </Box>
+                          <Box sx={{ width: '16.666%', p: 1 }}>
+                            <IconButton onClick={() => handleRemoveCategoryMapping(index)}>
+                              <TrashIcon size={20} />
+                            </IconButton>
+                          </Box>
+                        </Box>
                       ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl fullWidth required>
-                    <InputLabel>Response Type</InputLabel>
-                    <Select
-                      value={formData.responseType}
-                      label="Response Type"
-                      onChange={(e) => setFormData({ ...formData, responseType: e.target.value })}
-                    >
-                      <MenuItem value="text">Text</MenuItem>
-                      <MenuItem value="number">Number</MenuItem>
-                      <MenuItem value="boolean">Boolean</MenuItem>
-                      <MenuItem value="date">Date</MenuItem>
-                      <MenuItem value="select">Select</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <FormControl fullWidth>
-                    <InputLabel>Masked</InputLabel>
-                    <Select
-                      value={formData.isMasked.toString()}
-                      label="Masked"
-                      onChange={(e) => setFormData({ ...formData, isMasked: e.target.value === 'true' })}
-                    >
-                      <MenuItem value="true">Yes</MenuItem>
-                      <MenuItem value="false">No</MenuItem>
-                    </Select>
-                  </FormControl>
+                      <Button onClick={handleAddCategoryMapping} startIcon={<PlusIcon size={16}/>}>
+                        Add Mapping
+                      </Button>
+                    </Box>
+                  )}
                 </Box>
               </DialogContent>
               <DialogActions>
@@ -365,4 +575,4 @@ const VariableManagement: React.FC = () => {
   );
 };
 
-export default VariableManagement; 
+export default VariableManagement;

@@ -28,7 +28,6 @@ interface InstitutionParameter {
   description: string;
   recommendedRange: string;
   impact: string;
-  normalizationFormula: string;
   uniqueCode: string;
   isActive: boolean;
 }
@@ -42,7 +41,7 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const fetchParameters = async () => {
     try {
-      const response = await axios.get('/api/institution/getParameters');
+      const response = await axios.get('/institution/getParameters');
       setParameters(response.data.data);
     } catch (error) {
       enqueueSnackbar('Failed to fetch parameters', { variant: 'error' });
@@ -55,10 +54,9 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleCreateParameter = async (parameterData: Omit<InstitutionParameter, 'id'>) => {
     try {
-      await axios.post('/api/institution/setParameters', {
+      await axios.post('/institution/setParameters', {
         parameters: [{
           parameterId: parameterData.uniqueCode,
-          value: parameterData.normalizationFormula
         }]
       });
       enqueueSnackbar('Parameter created successfully', { variant: 'success' });
@@ -71,10 +69,9 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleEditParameter = async (parameterData: InstitutionParameter) => {
     try {
-      await axios.put(`/api/institution/updateParameter/${parameterData.id}`, {
+      await axios.put(`/institution/updateParameter/${parameterData.id}`, {
         institutionId: 1, // This should be dynamic based on the current institution
         parameterId: parameterData.uniqueCode,
-        value: parameterData.normalizationFormula
       });
       enqueueSnackbar('Parameter updated successfully', { variant: 'success' });
       setIsEditModalOpen(false);
@@ -86,7 +83,7 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleDeleteParameter = async (id: number) => {
     try {
-      await axios.delete(`/api/institution/deleteParameter/${id}`);
+      await axios.delete(`/institution/deleteParameter/${id}`);
       enqueueSnackbar('Parameter deleted successfully', { variant: 'success' });
       fetchParameters();
     } catch (error) {
