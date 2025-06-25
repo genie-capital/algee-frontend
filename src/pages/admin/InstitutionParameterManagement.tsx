@@ -41,7 +41,7 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const fetchParameters = async () => {
     try {
-      const response = await axios.get('/institution/getParameters');
+      const response = await axios.get('/parameter/all');
       setParameters(response.data.data);
     } catch (error) {
       enqueueSnackbar('Failed to fetch parameters', { variant: 'error' });
@@ -54,7 +54,7 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleCreateParameter = async (parameterData: Omit<InstitutionParameter, 'id'>) => {
     try {
-      await axios.post('/institution/setParameters', {
+      await axios.post('/parameter/create', {
         parameters: [{
           parameterId: parameterData.uniqueCode,
         }]
@@ -69,7 +69,7 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleEditParameter = async (parameterData: InstitutionParameter) => {
     try {
-      await axios.put(`/institution/updateParameter/${parameterData.id}`, {
+      await axios.put(`/parameter/update/{id}`, {
         institutionId: 1, // This should be dynamic based on the current institution
         parameterId: parameterData.uniqueCode,
       });
@@ -83,7 +83,7 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleDeleteParameter = async (id: number) => {
     try {
-      await axios.delete(`/institution/deleteParameter/${id}`);
+      await axios.delete(`/parameter/delete/${id}`);
       enqueueSnackbar('Parameter deleted successfully', { variant: 'success' });
       fetchParameters();
     } catch (error) {

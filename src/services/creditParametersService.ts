@@ -44,7 +44,7 @@ const creditParametersService = {
 
   // Get all available institution parameters
   getAllInstitutionParameters: async (): Promise<InstitutionParametersResponse> => {
-    const response = await api.get(`${API_BASE_URL}/institution/getParameters`);
+    const response = await api.get(`${API_BASE_URL}/parameter/all`);
     return response.data;
   },
 
