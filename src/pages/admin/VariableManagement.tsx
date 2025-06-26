@@ -94,6 +94,7 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
       });
       if (!response.ok) throw new Error('Network response was not ok');
       const data = await response.json();
+      console.log('Fetched categories response:', data); 
       if (data.success && Array.isArray(data.data)) {
         setCategories(data.data);
       } else {
@@ -108,7 +109,7 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
   const fetchVariables = async () => {
     try {
-      const response = await fetch(`/variable/all`, {
+      const response = await fetch(`/api/variable/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
