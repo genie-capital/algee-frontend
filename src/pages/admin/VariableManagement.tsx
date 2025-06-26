@@ -109,7 +109,7 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
   const fetchVariables = async () => {
     try {
-      const response = await fetch(`/api/variable/all`, {
+      const response = await fetch(`${API_BASE_URL}/variable/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -213,8 +213,8 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
     e.preventDefault();
     try {
       const url = editingVariable
-        ? `/api/variable/update/${editingVariable.id}`
-        : `/api/variable/create`;
+        ? `${API_BASE_URL}/variable/update/${editingVariable.id}`
+        : `${API_BASE_URL}/variable/create`;
       
       const body: any = {
         name: formData.name,
@@ -267,7 +267,7 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
     if (!window.confirm('Are you sure you want to delete this variable?')) return;
     
     try {
-      const response = await fetch(`/api/variable/delete/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/variable/delete/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
