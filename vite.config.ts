@@ -10,7 +10,7 @@ export default defineConfig({
         target: 'https://api.algee.co',
         changeOrigin: true,
         secure: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api')
+        rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
   }

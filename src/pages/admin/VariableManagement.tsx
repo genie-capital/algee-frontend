@@ -85,7 +85,7 @@ const VariableManagement: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`/api/variableCategory/all`, {
+      const response = await fetch(`/variableCategory/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -103,7 +103,7 @@ const VariableManagement: React.FC = () => {
 
   const fetchVariables = async () => {
     try {
-      const response = await fetch(`/api/variable/all`, {
+      const response = await fetch(`/variable/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
