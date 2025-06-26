@@ -65,6 +65,8 @@ const VariableManagement: React.FC = () => {
   const [categories, setCategories] = useState<VariableCategory[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingVariable, setEditingVariable] = useState<Variable | null>(null);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -84,20 +86,23 @@ const VariableManagement: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    setCategoriesError(null);
     try {
-      const response = await fetch(`/variableCategory/all`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(`/api/variableCategory/all`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (!response.ok) throw new Error('Network response was not ok');
       const data = await response.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
         setCategories(data.data);
       } else {
-        setError(data.message);
+        setCategoriesError(data.message || 'Failed to fetch categories');
       }
-    } catch (err) {
-      setError('Failed to fetch categories');
+    } catch (err: any) {
+      setCategoriesError(err.message || 'Failed to fetch categories');
+    } finally {
+      setCategoriesLoading(false);
     }
   };
 
@@ -399,7 +404,10 @@ const VariableManagement: React.FC = () => {
                         value={formData.variableCategoryId}
                         label="Category"
                         onChange={(e) => setFormData({ ...formData, variableCategoryId: e.target.value })}
+                        disabled={categoriesLoading}
                       >
+                        {categoriesLoading && <MenuItem disabled>Loading...</MenuItem>}
+                        {categoriesError && <MenuItem disabled>Error loading categories</MenuItem>}
                         {categories.map((category) => (
                           <MenuItem key={category.id} value={category.id}>
                             {category.name}
