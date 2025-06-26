@@ -89,7 +89,7 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
     setCategoriesLoading(true);
     setCategoriesError(null);
     try {
-      const response = await fetch(`/api/variableCategory/all`, {
+      const response = await fetch(`${API_BASE_URL}/variableCategory/all`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Network response was not ok');
