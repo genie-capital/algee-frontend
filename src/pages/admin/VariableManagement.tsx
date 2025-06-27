@@ -66,7 +66,7 @@ const VariableManagement: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingVariable, setEditingVariable] = useState<Variable | null>(null);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
-const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -84,6 +84,8 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [categoryVariables, setCategoryVariables] = useState<Variable[]>([]);
+  const [proportionInputs, setProportionInputs] = useState<{ [id: string]: string }>({});
 
   const fetchCategories = async () => {
     setCategoriesLoading(true);
@@ -129,6 +131,41 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
     fetchCategories();
     fetchVariables();
   }, [token]);
+
+  useEffect(() => {
+    if (openDialog && !editingVariable && formData.variableCategoryId) {
+      // Fetch variables in the selected category
+      const fetchCategoryVariables = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/variable/byCategory/${formData.variableCategoryId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          if (data.success) {
+            setCategoryVariables(data.data);
+            // Initialize proportionInputs for existing variables
+            const initialInputs: { [id: string]: string } = {};
+            data.data.forEach((v: Variable) => {
+              initialInputs[v.id] = String(v.variableProportion);
+            });
+            // Add a field for the new variable
+            initialInputs['new'] = formData.variableProportion || '';
+            setProportionInputs(initialInputs);
+          } else {
+            setCategoryVariables([]);
+            setProportionInputs({ new: formData.variableProportion || '' });
+          }
+        } catch {
+          setCategoryVariables([]);
+          setProportionInputs({ new: formData.variableProportion || '' });
+        }
+      };
+      fetchCategoryVariables();
+    } else if (!formData.variableCategoryId) {
+      setCategoryVariables([]);
+      setProportionInputs({ new: formData.variableProportion || '' });
+    }
+  }, [formData.variableCategoryId, openDialog, editingVariable]);
 
   const handleOpenDialog = (variable?: Variable) => {
     if (variable) {
@@ -211,6 +248,16 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Only apply for creation, not editing
+    if (!editingVariable && categoryVariables.length > 0) {
+      const total = Object.values(proportionInputs).reduce((sum, v) => sum + Number(v || 0), 0);
+      if (total !== 100) {
+        setError('Total proportion for all variables in this category must be exactly 100%');
+        return;
+      }
+    }
+
     try {
       const url = editingVariable
         ? `${API_BASE_URL}/variable/update/${editingVariable.id}`
@@ -227,7 +274,7 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
         max_value: parseFloat(formData.max_value),
         responseType: formData.responseType,
         variableCategoryId: parseInt(formData.variableCategoryId),
-        variableProportion: parseFloat(formData.variableProportion),
+        variableProportion: parseFloat(proportionInputs['new'] || formData.variableProportion),
       };
 
       if (formData.responseType === 'int_float') {
@@ -238,6 +285,14 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
         body.categoryMappings = formData.categoryMappings.map(m => ({
           ...m,
           numericValue: parseFloat(String(m.numericValue))
+        }));
+      }
+
+      // Add redistributeProportions if creating and there are existing variables
+      if (!editingVariable && categoryVariables.length > 0) {
+        body.redistributeProportions = categoryVariables.map(v => ({
+          variableId: v.id,
+          proportion: parseFloat(proportionInputs[v.id] || '0')
         }));
       }
 
@@ -546,6 +601,68 @@ const [categoriesError, setCategoriesError] = useState<string | null>(null);
                       <Button onClick={handleAddCategoryMapping} startIcon={<PlusIcon size={16}/>}>
                         Add Mapping
                       </Button>
+                    </Box>
+                  )}
+
+                  {/* Proportion Redistribution Table for New Variable Creation */}
+                  {!editingVariable && categoryVariables.length > 0 && (
+                    <Box sx={{ p: 1, width: '100%' }}>
+                      <Typography variant="h6" gutterBottom>Set Proportions for Variables in this Category</Typography>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Variable Name</TableCell>
+                              <TableCell>Proportion (%)</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {categoryVariables.map((v) => (
+                              <TableRow key={v.id}>
+                                <TableCell>{v.name}</TableCell>
+                                <TableCell>
+                                  <TextField
+                                    type="number"
+                                    value={proportionInputs[v.id] || ''}
+                                    onChange={e => {
+                                      const value = e.target.value;
+                                      setProportionInputs(prev => ({ ...prev, [v.id]: value }));
+                                    }}
+                                    inputProps={{ min: 0, max: 100 }}
+                                    size="small"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow>
+                              <TableCell>
+                                <b>New Variable</b>
+                              </TableCell>
+                              <TableCell>
+                                <TextField
+                                  type="number"
+                                  value={proportionInputs['new'] || ''}
+                                  onChange={e => {
+                                    const value = e.target.value;
+                                    setProportionInputs(prev => ({ ...prev, new: value }));
+                                    setFormData(prev => ({ ...prev, variableProportion: value }));
+                                  }}
+                                  inputProps={{ min: 0, max: 100 }}
+                                  size="small"
+                                  required
+                                />
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                      <Typography variant="body2" color={
+                        (Object.values(proportionInputs).reduce((sum, v) => sum + Number(v || 0), 0) !== 100)
+                          ? 'error'
+                          : 'success.main'
+                      }>
+                        Total: {Object.values(proportionInputs).reduce((sum, v) => sum + Number(v || 0), 0)}%
+                      </Typography>
                     </Box>
                   )}
                 </Box>
