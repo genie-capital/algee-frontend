@@ -134,38 +134,22 @@ const VariableManagement: React.FC = () => {
 
   useEffect(() => {
     if (openDialog && !editingVariable && formData.variableCategoryId) {
-      // Fetch variables in the selected category
-      const fetchCategoryVariables = async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/variable/byCategory/${formData.variableCategoryId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const data = await response.json();
-          if (data.success) {
-            setCategoryVariables(data.data);
-            // Initialize proportionInputs for existing variables
-            const initialInputs: { [id: string]: string } = {};
-            data.data.forEach((v: Variable) => {
-              initialInputs[v.id] = String(v.variableProportion);
-            });
-            // Add a field for the new variable
-            initialInputs['new'] = formData.variableProportion || '';
-            setProportionInputs(initialInputs);
-          } else {
-            setCategoryVariables([]);
-            setProportionInputs({ new: formData.variableProportion || '' });
-          }
-        } catch {
-          setCategoryVariables([]);
-          setProportionInputs({ new: formData.variableProportion || '' });
-        }
-      };
-      fetchCategoryVariables();
+      // Fallback: filter from all variables in state
+      const filtered = variables.filter(
+        v => v.variableCategoryId === Number(formData.variableCategoryId)
+      );
+      setCategoryVariables(filtered);
+      const initialInputs: { [id: string]: string } = {};
+      filtered.forEach((v: Variable) => {
+        initialInputs[v.id] = String(v.variableProportion);
+      });
+      initialInputs['new'] = formData.variableProportion || '';
+      setProportionInputs(initialInputs);
     } else if (!formData.variableCategoryId) {
       setCategoryVariables([]);
       setProportionInputs({ new: formData.variableProportion || '' });
     }
-  }, [formData.variableCategoryId, openDialog, editingVariable]);
+  }, [formData.variableCategoryId, openDialog, editingVariable, variables]);
 
   const handleOpenDialog = (variable?: Variable) => {
     if (variable) {
