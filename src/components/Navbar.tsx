@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserCircle } from 'lucide-react';
+import Logo from './common/Logo';
 
 interface NavbarProps {
   institutionName?: string;
@@ -34,7 +35,7 @@ const Navbar: React.FC<NavbarProps> = ({
               </svg>
             </button>
             <div className="text-xl font-bold flex items-center lg:ml-2.5">
-              <span className="self-center whitespace-nowrap text-[#07002F]">Credit Scoring System</span>
+              <Logo title="Algee - Africa's Premium Credit Engine" size="small" />
             </div>
           </div>
           <div className="flex items-center">

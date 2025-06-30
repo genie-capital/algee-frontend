@@ -79,7 +79,7 @@ const Login = () => {
   return <AuthLayout>
       <div className="w-full max-w-md px-8 py-10 bg-white rounded-lg shadow-md">
         <div className="flex flex-col items-center mb-8">
-          <Logo />
+        <Logo title="Algee" />
           <h1 className="mt-4 text-2xl font-bold text-center text-[#07002F]">
             Financial Institution Secure Login
           </h1>

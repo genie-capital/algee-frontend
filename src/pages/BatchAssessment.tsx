@@ -5,7 +5,7 @@ import Button from '../components/common/Button';
 import Layout from '../components/Layout';
 import ProcessingModal from '../components/ProcessingModal';
 import { csvUploadService, UploadBatch } from '../services/csvUploadService';
-import { creditScoringService } from '../services/creditScoringService';
+import { useBatchProcessing } from '../hooks/useBatchProcessing';
 
 interface BatchJob {
   id: string;
@@ -19,12 +19,22 @@ const BatchAssessment = () => {
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [validationComplete, setValidationComplete] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
   const [batchJobs, setBatchJobs] = useState<UploadBatch[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    isProcessing: isScoring,
+    totalClients,
+    processedClients,
+    failedClients,
+    isComplete: isScoringComplete,
+    error: scoringError,
+    processBatch: runCreditScoring,
+    reset: resetScoring
+  } = useBatchProcessing();
 
   useEffect(() => {
     fetchBatches();
@@ -50,6 +60,7 @@ const BatchAssessment = () => {
       setSelectedFile(file);
       setValidationComplete(false);
       setValidationError(null);
+      resetScoring();
     }
   };
 
@@ -64,6 +75,7 @@ const BatchAssessment = () => {
       setSelectedFile(file);
       setValidationComplete(false);
       setValidationError(null);
+      resetScoring();
     }
   };
 
@@ -99,47 +111,38 @@ const BatchAssessment = () => {
   const processBatch = async () => {
     if (!selectedFile || !validationComplete) return;
 
-    setIsProcessing(true);
-    setProgress(0);
+    setIsUploading(true);
+    setValidationError(null);
+    resetScoring();
 
     try {
-      const response = await csvUploadService.uploadCSV(
+      const uploadResponse = await csvUploadService.uploadCSV(
         selectedFile,
         selectedFile.name,
         'Batch upload'
       );
 
-      if (response.success) {
-        const newBatch: UploadBatch = {
-          id: response.data.uploadBatchId,
-          filename: response.data.fileInfo.originalName,
-          status: 'completed',
-          total_records: response.data.processing.totalRecords,
-          processed_records: response.data.processing.successfulRecords,
-          failed_records: response.data.processing.failedRecords,
-          createdAt: new Date().toISOString()
-        };
+      if (uploadResponse.success) {
+        const batchId = uploadResponse.data.uploadBatchId;
 
-        // Call credit scoring service for the batch
-        const creditScoringResponse = await creditScoringService.calculateBatchResults(
-          [response.data.processing.successfulRecords],
-          response.data.uploadBatchId
-        );
+        await fetchBatches();
 
-        if (!creditScoringResponse.success) {
-          throw new Error('Failed to calculate credit scores');
+        const detailsResponse = await csvUploadService.getUploadBatchDetails(batchId);
+
+        if (detailsResponse.success && detailsResponse.data.clients?.length > 0) {
+          const clientIds = detailsResponse.data.clients.map(client => client.id);
+          await runCreditScoring(clientIds, batchId);
         }
 
-        setBatchJobs(prev => [newBatch, ...prev]);
-        setProgress(100);
+        setSelectedFile(null);
+        setValidationComplete(false);
       } else {
-        setValidationError(response.message || 'Error processing batch');
+        setValidationError(uploadResponse.message || 'Error processing batch');
       }
-    } catch (error) {
-      setValidationError('Error processing batch. Please try again.');
+    } catch (error: any) {
+      setValidationError(error.response?.data?.message || 'An error occurred. Please try again.');
     } finally {
-      setIsProcessing(false);
-      setProgress(0);
+      setIsUploading(false);
     }
   };
 
@@ -242,7 +245,7 @@ const BatchAssessment = () => {
               </div>
             )}
 
-            {validationError && (
+            { (validationError || scoringError) && (
               <div className="bg-red-50 border-l-4 border-red-400 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -250,7 +253,7 @@ const BatchAssessment = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-red-700">
-                      {validationError}
+                      {validationError || scoringError}
                     </p>
                   </div>
                 </div>
@@ -301,12 +304,17 @@ const BatchAssessment = () => {
               {validationComplete && !validationError && (
                 <Button 
                   onClick={processBatch}
-                  disabled={isProcessing}
+                  disabled={isUploading || isScoring}
                 >
-                  {isProcessing ? (
+                  {isUploading ? (
                     <>
                       <Loader2Icon className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                      Processing...
+                      Uploading...
+                    </>
+                  ) : isScoring ? (
+                    <>
+                      <Loader2Icon className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                      Scoring...
                     </>
                   ) : (
                     'Process Batch'
@@ -383,16 +391,22 @@ const BatchAssessment = () => {
         </div>
       </div>
 
-      {isProcessing && (
+      {isScoring && (
         <ProcessingModal
-          isOpen={isProcessing}
-          totalClients={100}
-          processedClients={progress}
-          failedClients={0}
-          isComplete={progress === 100}
-          error={undefined}
-          onClose={() => setIsProcessing(false)}
-          onViewResults={() => handleViewResults(0)}
+          isOpen={isScoring}
+          totalClients={totalClients}
+          processedClients={processedClients}
+          failedClients={failedClients}
+          isComplete={isScoringComplete}
+          error={scoringError ?? undefined}
+          onClose={resetScoring}
+          onViewResults={() => {
+            resetScoring();
+            const latestBatch = batchJobs[0];
+            if (latestBatch) {
+              handleViewResults(latestBatch.id);
+            }
+          }}
         />
       )}
     </>

@@ -42,7 +42,7 @@ interface BatchResult {
 export const creditScoringService = {
   // Calculate result for a single client
   calculateClientResult: async (clientId: number, uploadBatchId?: number, institutionId?: number) => {
-    const response = await axios.post(`${API_BASE_URL}/api/variables/calculate-client-result/${clientId}`, {
+    const response = await axios.post(`${API_BASE_URL}/variables/calculate-client-result/${clientId}`, {
       uploadBatchId,
       institutionId
     });
@@ -51,7 +51,7 @@ export const creditScoringService = {
 
   // Calculate results for multiple clients
   calculateBatchResults: async (clientIds: number[], uploadBatchId?: number, institutionId?: number) => {
-    const response = await axios.post(`${API_BASE_URL}/api/variables/calculate-batch-results`, {
+    const response = await axios.post(`${API_BASE_URL}/variables/calculate-batch-results`, {
       clientIds,
       uploadBatchId,
       institutionId
@@ -61,7 +61,7 @@ export const creditScoringService = {
 
   // Get client result
   getClientResult: async (clientId: number, uploadBatchId?: number) => {
-    const response = await axios.get(`${API_BASE_URL}/api/variables/client-result/${clientId}`, {
+    const response = await axios.get(`${API_BASE_URL}/variables/client-result/${clientId}`, {
       params: { uploadBatchId }
     });
     return response.data;
