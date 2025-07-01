@@ -31,6 +31,8 @@ const CreateParameterModal: React.FC<CreateParameterModalProps> = ({
     recommendedRange: '',
     impact: '',
     uniqueCode: '',
+    isActive: 'true',
+    isRequired: 'false',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | any) => {
@@ -43,7 +45,13 @@ const CreateParameterModal: React.FC<CreateParameterModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    const payload = {
+      ...formData,
+      uniqueCode: Number(formData.uniqueCode),
+      isActive: formData.isActive === 'true',
+      isRequired: formData.isRequired === 'true',
+    };
+    onSubmit(payload);
   };
 
   return (
@@ -104,7 +112,34 @@ const CreateParameterModal: React.FC<CreateParameterModalProps> = ({
               required
               fullWidth
               helperText="Enter a unique code for this parameter (e.g., 1001)"
+              type="number"
             />
+
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                name="isActive"
+                value={formData.isActive}
+                onChange={handleChange}
+                label="Status"
+              >
+                <MenuItem value="true">Active</MenuItem>
+                <MenuItem value="false">Inactive</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Required</InputLabel>
+              <Select
+                name="isRequired"
+                value={formData.isRequired}
+                onChange={handleChange}
+                label="Required"
+              >
+                <MenuItem value="true">Required</MenuItem>
+                <MenuItem value="false">Optional</MenuItem>
+              </Select>
+            </FormControl>
 
           </Box>
         </DialogContent>
