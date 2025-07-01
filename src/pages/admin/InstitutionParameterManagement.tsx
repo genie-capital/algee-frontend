@@ -13,6 +13,7 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  TextField,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 
@@ -22,6 +23,7 @@ import {
   updateParameter,
   deleteParameter,
   updateInstitutionParameterByAdmin,
+  getInstitutionParametersDetailed,
 } from '../../services/parameterService';
 
 import CreateParameterModal from '../../components/institution/CreateParameterModal';
@@ -39,6 +41,8 @@ interface InstitutionParameter {
   impact: string;
   uniqueCode: string;
   isActive: boolean;
+  value?: number;
+  institutionValue?: number;
 }
 
 const InstitutionParameterManagement: React.FC = () => {
@@ -48,11 +52,30 @@ const InstitutionParameterManagement: React.FC = () => {
   const [selectedParameter, setSelectedParameter] = useState<InstitutionParameter | null>(null);
   const [editMode, setEditMode] = useState<'admin' | 'parameter'>('admin');
   const { enqueueSnackbar } = useSnackbar();
+  const [institutionId, setInstitutionId] = useState<string>('');
+  const [isInstitutionSearch, setIsInstitutionSearch] = useState(false);
 
   const fetchParameters = async () => {
     try {
-      const response = await getAllParameters();
-      setParameters(response.data.data);
+      if (isInstitutionSearch && institutionId) {
+        const response = await getInstitutionParametersDetailed(institutionId);
+        // Map the API response to match the table's expected format
+        setParameters(
+          response.data.data.map((item: any) => ({
+            id: item.id,
+            name: item.parameter?.name || '',
+            description: item.parameter?.description || '',
+            recommendedRange: '', // Not provided in detailed endpoint
+            impact: '', // Not provided in detailed endpoint
+            uniqueCode: item.parameterId,
+            isActive: true, // Not provided, default to true
+            value: item.value,
+          }))
+        );
+      } else {
+        const response = await getAllParameters();
+        setParameters(response.data.data);
+      }
     } catch (error) {
       enqueueSnackbar('Failed to fetch parameters', { variant: 'error' });
     }
@@ -128,6 +151,37 @@ const InstitutionParameterManagement: React.FC = () => {
         </Button>
       </Box>
 
+      <Box display="flex" alignItems="center" gap={2} mb={2}>
+        <TextField
+          label="Institution ID"
+          value={institutionId}
+          onChange={e => setInstitutionId(e.target.value)}
+          size="small"
+          type="number"
+          placeholder="Enter institution ID"
+        />
+        <Button
+          variant="outlined"
+          onClick={() => {
+            setIsInstitutionSearch(!!institutionId);
+            fetchParameters();
+          }}
+        >
+          Search by Institution
+        </Button>
+        <Button
+          variant="text"
+          onClick={() => {
+            setInstitutionId('');
+            setIsInstitutionSearch(false);
+            fetchParameters();
+          }}
+          disabled={!isInstitutionSearch}
+        >
+          Show All
+        </Button>
+      </Box>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -152,7 +206,11 @@ const InstitutionParameterManagement: React.FC = () => {
                   <Tooltip title="Edit">
                     <IconButton
                       onClick={() => {
-                        setSelectedParameter(parameter);
+                        if (isInstitutionSearch) {
+                          setSelectedParameter({ ...parameter, institutionValue: parameter.value });
+                        } else {
+                          setSelectedParameter(parameter);
+                        }
                         setEditMode('admin');
                         setIsEditModalOpen(true);
                       }}
@@ -187,7 +245,7 @@ const InstitutionParameterManagement: React.FC = () => {
           }}
           onSubmit={handleEditParameter}
           parameter={selectedParameter}
-          showInstitutionValueField={editMode === 'admin'}
+          showInstitutionValueField={isInstitutionSearch}
         />
       )}
       </div>

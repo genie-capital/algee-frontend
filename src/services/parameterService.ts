@@ -32,3 +32,13 @@ export const updateInstitutionParameterByAdmin = async (
 ) => {
   return await api.put(`/institution/updateParameter/${institutionParameterId}`, data);
 };
+
+// Get institution parameters (detailed)
+export const getInstitutionParametersDetailed = async (institutionId: number | string) => {
+  return await api.get(`/institution/getParameters/${institutionId}`);
+};
+
+// Get institution parameters (simple)
+export const getInstitutionParametersSimple = async (institutionId: number | string) => {
+  return await api.get(`/institution/getParametersForInstitution/${institutionId}`);
+};
