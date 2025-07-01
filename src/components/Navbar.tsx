@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserCircle } from 'lucide-react';
-import Logo from './common/Logo';
+import SvgLogo from './common/SvgLogo';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavbarProps {
   institutionName?: string;
@@ -15,6 +16,7 @@ const Navbar: React.FC<NavbarProps> = ({
   institutionLogo
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <nav className="bg-white border-b border-gray-200 fixed z-30 w-full">
@@ -35,7 +37,10 @@ const Navbar: React.FC<NavbarProps> = ({
               </svg>
             </button>
             <div className="text-xl font-bold flex items-center lg:ml-2.5">
-              <Logo size="small" />
+              <SvgLogo 
+                size="small" 
+                title={user?.institutionName || institutionName} 
+              />
             </div>
           </div>
           <div className="flex items-center">
