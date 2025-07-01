@@ -69,7 +69,7 @@ const Sidebar = () => {
       <aside className={`bg-[#07002F] text-white w-64 min-h-screen flex flex-col transition-all duration-300 ease-in-out ${isOpen ? 'fixed inset-y-0 left-0 z-40' : '-translate-x-full md:translate-x-0 fixed md:static'}`}>
         <div className="flex items-center justify-center h-16 border-b border-[#008401]/30">
           <div className="flex items-center">
-            <GradientLogo size="small" showSubtitle={false} />
+            <GradientLogo size="medium" showSubtitle={false} />
           </div>
         </div>
 

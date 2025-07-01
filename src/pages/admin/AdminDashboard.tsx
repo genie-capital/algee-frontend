@@ -262,7 +262,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* Parameter Management */}
-            <div
+            {/* <div
               onClick={() => navigate('/admin/formula')}
               className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
             >
@@ -283,7 +283,7 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Recent Activity */}
