@@ -35,7 +35,7 @@ const Navbar: React.FC<NavbarProps> = ({
               </svg>
             </button>
             <div className="text-xl font-bold flex items-center lg:ml-2.5">
-              <Logo title="Algee - Africa's Premium Credit Engine" size="small" />
+              <Logo size="small" />
             </div>
           </div>
           <div className="flex items-center">

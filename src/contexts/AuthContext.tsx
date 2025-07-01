@@ -10,6 +10,7 @@ import {
   getCurrentToken,
   TokenPayload
 } from '../utils/tokenUtils';
+import { updateDocumentTitle } from '../utils/titleUtils';
 
 // Add to User type
 export interface User {
@@ -63,6 +64,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(getCurrentToken());
   const navigate = useNavigate();
+  
+  // Update document title when authentication status changes
+  useEffect(() => {
+    const isAuthenticated = !!user && !!token;
+    const isAdmin = user?.is_admin || false;
+    updateDocumentTitle(isAuthenticated, isAdmin);
+  }, [user, token]);
   
   // Check if user is already logged in on mount
   useEffect(() => {

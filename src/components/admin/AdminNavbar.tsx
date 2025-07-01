@@ -31,7 +31,7 @@ const AdminNavbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Logo title="Algee - System Administrator" size="small" />
+            <Logo size="small" />
           </div>
           
           <div className="flex items-center">
