@@ -49,12 +49,12 @@ export interface Parameter {
 const parameterManagementService = {
   // Category operations
   getCategories: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/variable/categories`);
+    const response = await fetch(`${API_BASE_URL}/variable/categories`);
     return response.json();
   },
 
   createCategory: async (categoryData: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const response = await fetch(`${API_BASE_URL}/api/variable/category/create`, {
+    const response = await fetch(`${API_BASE_URL}/variable/category/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ const parameterManagementService = {
   },
 
   updateCategory: async (id: number, categoryData: Partial<Category>) => {
-    const response = await fetch(`${API_BASE_URL}/api/variable/category/update/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/variable/category/update/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ const parameterManagementService = {
   },
 
   deleteCategory: async (id: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/variable/category/delete/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/variable/category/delete/${id}`, {
       method: 'DELETE',
     });
     return response.json();
@@ -84,12 +84,12 @@ const parameterManagementService = {
 
   // Variable operations
   getVariables: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/variable/list`);
+    const response = await fetch(`${API_BASE_URL}/variable/list`);
     return response.json();
   },
 
   createVariable: async (variableData: Omit<Variable, 'id'>) => {
-    const response = await fetch(`${API_BASE_URL}/api/variable/create`, {
+    const response = await fetch(`${API_BASE_URL}/variable/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ const parameterManagementService = {
   },
 
   updateVariable: async (id: number, variableData: Partial<Variable>) => {
-    const response = await fetch(`${API_BASE_URL}/api/variable/update/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/variable/update/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ const parameterManagementService = {
   },
 
   deleteVariable: async (id: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/variable/delete/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/variable/delete/${id}`, {
       method: 'DELETE',
     });
     return response.json();
@@ -119,7 +119,7 @@ const parameterManagementService = {
 
   // Parameter operations
   getParameters: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/institution/getParameters`);
+    const response = await fetch(`${API_BASE_URL}/institution/getParameters`);
     return response.json();
   },
 

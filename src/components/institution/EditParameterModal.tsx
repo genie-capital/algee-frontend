@@ -27,8 +27,9 @@ interface InstitutionParameter {
 interface EditParameterModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: InstitutionParameter) => void;
+  onSubmit: (data: InstitutionParameter & { institutionValue?: number }) => void;
   parameter: InstitutionParameter;
+  showInstitutionValueField?: boolean;
 }
 
 const EditParameterModal: React.FC<EditParameterModalProps> = ({
@@ -36,8 +37,9 @@ const EditParameterModal: React.FC<EditParameterModalProps> = ({
   onClose,
   onSubmit,
   parameter,
+  showInstitutionValueField = false,
 }) => {
-  const [formData, setFormData] = useState<InstitutionParameter>(parameter);
+  const [formData, setFormData] = useState<InstitutionParameter & { institutionValue?: number }>(parameter);
 
   useEffect(() => {
     setFormData(parameter);
@@ -129,6 +131,19 @@ const EditParameterModal: React.FC<EditParameterModalProps> = ({
                 <MenuItem value="false">Inactive</MenuItem>
               </Select>
             </FormControl>
+
+            {showInstitutionValueField && (
+              <TextField
+                name="institutionValue"
+                label="Institution Value"
+                type="number"
+                value={formData.institutionValue ?? ''}
+                onChange={handleChange}
+                fullWidth
+                required
+                helperText="Value set by the institution. Editable by admin."
+              />
+            )}
 
             <Typography variant="caption" color="textSecondary">
               Note: Please refer to the normalization formulas guide for proper formula syntax and examples.

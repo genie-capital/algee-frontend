@@ -38,9 +38,9 @@ const Navbar: React.FC<NavbarProps> = ({
             </button>
             <div className="text-xl font-bold flex items-center lg:ml-2.5">
               <SvgLogo 
-                size="medium" 
-                title={user?.institutionName || institutionName} 
+                size="medium"  
               />
+              <span>{user?.institutionName || institutionName}</span>
             </div>
           </div>
           <div className="flex items-center">

@@ -15,6 +15,15 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+
+import {
+  getAllParameters,
+  createParameter,
+  updateParameter,
+  deleteParameter,
+  updateInstitutionParameterByAdmin,
+} from '../../services/parameterService';
+
 import CreateParameterModal from '../../components/institution/CreateParameterModal';
 import EditParameterModal from '../../components/institution/EditParameterModal';
 import AdminNavbar from '../../components/admin/AdminNavbar';
@@ -37,11 +46,12 @@ const InstitutionParameterManagement: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedParameter, setSelectedParameter] = useState<InstitutionParameter | null>(null);
+  const [editMode, setEditMode] = useState<'admin' | 'parameter'>('admin');
   const { enqueueSnackbar } = useSnackbar();
 
   const fetchParameters = async () => {
     try {
-      const response = await axios.get('/parameter/all');
+      const response = await getAllParameters();
       setParameters(response.data.data);
     } catch (error) {
       enqueueSnackbar('Failed to fetch parameters', { variant: 'error' });
@@ -54,11 +64,7 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleCreateParameter = async (parameterData: Omit<InstitutionParameter, 'id'>) => {
     try {
-      await axios.post('/parameter/create', {
-        parameters: [{
-          parameterId: parameterData.uniqueCode,
-        }]
-      });
+      await createParameter(parameterData);
       enqueueSnackbar('Parameter created successfully', { variant: 'success' });
       setIsCreateModalOpen(false);
       fetchParameters();
@@ -67,12 +73,24 @@ const InstitutionParameterManagement: React.FC = () => {
     }
   };
 
-  const handleEditParameter = async (parameterData: InstitutionParameter) => {
+  const handleEditParameter = async (parameterData: InstitutionParameter & { institutionValue?: number }) => {
     try {
-      await axios.put(`/parameter/update/{id}`, {
-        institutionId: 1, // This should be dynamic based on the current institution
-        parameterId: parameterData.uniqueCode,
-      });
+      if (editMode === 'admin') {
+        await updateInstitutionParameterByAdmin(parameterData.id, {
+          institutionId: 1, // Should be dynamic
+          parameterId: Number(parameterData.uniqueCode),
+          value: parameterData.institutionValue ?? 0,
+        });
+      } else {
+        await updateParameter(parameterData.id, {
+          name: parameterData.name,
+          description: parameterData.description,
+          recommendedRange: parameterData.recommendedRange,
+          impact: parameterData.impact,
+          uniqueCode: parameterData.uniqueCode,
+          isActive: parameterData.isActive,
+        });
+      }
       enqueueSnackbar('Parameter updated successfully', { variant: 'success' });
       setIsEditModalOpen(false);
       fetchParameters();
@@ -83,7 +101,7 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleDeleteParameter = async (id: number) => {
     try {
-      await axios.delete(`/parameter/delete/${id}`);
+      await deleteParameter(id);
       enqueueSnackbar('Parameter deleted successfully', { variant: 'success' });
       fetchParameters();
     } catch (error) {
@@ -135,6 +153,7 @@ const InstitutionParameterManagement: React.FC = () => {
                     <IconButton
                       onClick={() => {
                         setSelectedParameter(parameter);
+                        setEditMode('admin');
                         setIsEditModalOpen(true);
                       }}
                     >
@@ -168,6 +187,7 @@ const InstitutionParameterManagement: React.FC = () => {
           }}
           onSubmit={handleEditParameter}
           parameter={selectedParameter}
+          showInstitutionValueField={editMode === 'admin'}
         />
       )}
       </div>
