@@ -349,12 +349,15 @@ const VariableManagement: React.FC = () => {
       });
 
       const data = await response.json();
+      console.log('Server response:', data);
+      console.log('Response status:', response.status);
+      
       if (data.success) {
         setSuccess(editingVariable ? 'Variable updated successfully' : 'Variable created successfully');
         fetchVariables();
         handleCloseDialog();
       } else {
-        setError(data.message);
+        setError(data.message || 'Server error occurred');
       }
     } catch (err) {
       setError('Failed to save variable');
