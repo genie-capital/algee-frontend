@@ -281,7 +281,7 @@ const VariableManagement: React.FC = () => {
     }
 
     // Validate that min_value is not empty and is a valid number
-    if (!formData.min_value || formData.min_value === '') {
+    if (formData.min_value === '') {
       setError('Minimum value is required');
       return;
     }
