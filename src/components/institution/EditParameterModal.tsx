@@ -112,10 +112,14 @@ const EditParameterModal: React.FC<EditParameterModalProps> = ({
     setLoading(true);
 
     try {
+      // Debug: Log the form data being sent
+      console.log('EditParameterModal sending formData:', formData);
+      
       // Call the parent's onSubmit handler which will handle the API call
       await onSubmit(formData);
       onClose();
     } catch (error: any) {
+      console.error('EditParameterModal error:', error);
       setError(error.response?.data?.message || 'Failed to update parameter. Please try again.');
     } finally {
       setLoading(false);
@@ -217,7 +221,7 @@ const EditParameterModal: React.FC<EditParameterModalProps> = ({
               <InputLabel>Status</InputLabel>
               <Select
                 name="isActive"
-                value={formData.isActive}
+                value={String(formData.isActive)}
                 onChange={handleChange}
                 label="Status"
                 disabled={loading}
@@ -231,7 +235,7 @@ const EditParameterModal: React.FC<EditParameterModalProps> = ({
               <InputLabel>Required</InputLabel>
               <Select
                 name="isRequired"
-                value={formData.isRequired ?? true}
+                value={String(formData.isRequired ?? true)}
                 onChange={handleChange}
                 label="Required"
                 disabled={loading}

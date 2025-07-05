@@ -114,26 +114,32 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleEditParameter = async (parameterData: InstitutionParameter & { institutionValue?: number }) => {
     try {
-      if (editMode === 'admin' && isInstitutionSearch && institutionId) {
+      // Check if we're editing an institution parameter (when searching by institution)
+      if (isInstitutionSearch && institutionId && parameterData.institutionValue !== undefined) {
         await updateInstitutionParameterByAdmin(parameterData.id, {
           institutionId: Number(institutionId),
           parameterId: Number(parameterData.uniqueCode),
           value: parameterData.institutionValue ?? 0,
         });
       } else {
-        await updateParameter(parameterData.id, {
+        // Editing a regular parameter
+        const updatePayload = {
           name: parameterData.name,
           description: parameterData.description,
           recommendedRange: parameterData.recommendedRange,
           impact: parameterData.impact,
           isRequired: parameterData.isRequired ?? true,
           isActive: typeof parameterData.isActive === 'string' ? parameterData.isActive === 'true' : !!parameterData.isActive,
-        });
+        };
+        
+        console.log('Updating parameter with payload:', updatePayload);
+        await updateParameter(parameterData.id, updatePayload);
       }
       enqueueSnackbar('Parameter updated successfully', { variant: 'success' });
       setIsEditModalOpen(false);
       fetchParameters();
     } catch (error) {
+      console.error('Error updating parameter:', error);
       enqueueSnackbar('Failed to update parameter', { variant: 'error' });
       throw error; // Re-throw to let the modal handle the error display
     }
