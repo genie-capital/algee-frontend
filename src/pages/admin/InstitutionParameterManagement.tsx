@@ -41,6 +41,7 @@ interface InstitutionParameter {
   impact: string;
   uniqueCode: string;
   isActive: boolean;
+  isRequired?: boolean;
   value?: number;
   institutionValue?: number;
 }
@@ -68,13 +69,18 @@ const InstitutionParameterManagement: React.FC = () => {
             recommendedRange: '', // Not provided in detailed endpoint
             impact: '', // Not provided in detailed endpoint
             uniqueCode: item.parameterId,
-            isActive: true, // Not provided, default to true
+            isActive: item.parameter?.is_active ?? true,
+            isRequired: item.parameter?.is_required ?? true,
             value: item.value,
           }))
         );
       } else {
         const response = await getAllParameters();
-        setParameters(response.data.data);
+        setParameters(response.data.data.map((item: any) => ({
+          ...item,
+          isRequired: item.is_required ?? true,
+          isActive: item.is_active ?? true,
+        })));
       }
     } catch (error) {
       enqueueSnackbar('Failed to fetch parameters', { variant: 'error' });
@@ -87,7 +93,17 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleCreateParameter = async (parameterData: Omit<InstitutionParameter, 'id'>) => {
     try {
-      await createParameter(parameterData);
+      // Only send the fields that the API expects, plus extra UI fields for future compatibility
+      const apiPayload = {
+        name: parameterData.name,
+        description: parameterData.description,
+        uniqueCode: Number(parameterData.uniqueCode),
+        recommendedRange: parameterData.recommendedRange,
+        impact: parameterData.impact,
+        isRequired: parameterData.isRequired ?? false,
+        isActive: typeof parameterData.isActive === 'string' ? parameterData.isActive === 'true' : !!parameterData.isActive,
+      };
+      await createParameter(apiPayload);
       enqueueSnackbar('Parameter created successfully', { variant: 'success' });
       setIsCreateModalOpen(false);
       fetchParameters();
@@ -110,8 +126,8 @@ const InstitutionParameterManagement: React.FC = () => {
           description: parameterData.description,
           recommendedRange: parameterData.recommendedRange,
           impact: parameterData.impact,
-          uniqueCode: parameterData.uniqueCode,
-          isActive: parameterData.isActive,
+          isRequired: parameterData.isRequired ?? true,
+          isActive: typeof parameterData.isActive === 'string' ? parameterData.isActive === 'true' : !!parameterData.isActive,
         });
       }
       enqueueSnackbar('Parameter updated successfully', { variant: 'success' });

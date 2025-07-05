@@ -25,6 +25,7 @@ interface InstitutionParameter {
   impact: string;
   uniqueCode: string;
   isActive: boolean;
+  isRequired?: boolean;
 }
 
 interface EditParameterModalProps {
@@ -223,6 +224,20 @@ const EditParameterModal: React.FC<EditParameterModalProps> = ({
               >
                 <MenuItem value="true">Active</MenuItem>
                 <MenuItem value="false">Inactive</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Required</InputLabel>
+              <Select
+                name="isRequired"
+                value={formData.isRequired ?? true}
+                onChange={handleChange}
+                label="Required"
+                disabled={loading}
+              >
+                <MenuItem value="true">Required</MenuItem>
+                <MenuItem value="false">Optional</MenuItem>
               </Select>
             </FormControl>
 
