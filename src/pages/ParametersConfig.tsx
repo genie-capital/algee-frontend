@@ -3,27 +3,29 @@ import { InfoIcon, ClockIcon, HistoryIcon, RefreshCcwIcon, SaveIcon } from 'luci
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Layout from '../components/Layout';
-import creditParametersService, { InstitutionParameter, CreditParameter } from '../services/creditParametersService';
+import {
+  getAllParameters,
+  getParametersForInstitution,
+  setInstitutionParameters as setInstitutionParametersService,
+  ParameterTemplate,
+  InstitutionParameter,
+  CreditParameterInput
+} from '../services/institutionParameterService';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-interface ParameterInfo {
-  name: string;
-  description: string;
-  recommendedRange: string;
-  impact: string;
-}
-
 const ParametersConfig = () => {
   const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState<Record<string, string>>({});
-  const [parameters, setParameters] = useState<InstitutionParameter[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState('October 15, 2023 14:30:25');
+  const [parameterTemplates, setParameterTemplates] = useState<ParameterTemplate[]>([]);
+  const [institutionParameters, setInstitutionParameters] = useState<InstitutionParameter[]>([]);
+  const [isEditing, setIsEditing] = useState(true); // Default to editing mode for institutions
+  const [lastUpdated, setLastUpdated] = useState('');
   const [selectedParameter, setSelectedParameter] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [historyData, setHistoryData] = useState<Array<any>>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [historyData, setHistoryData] = useState<Array<any>>([]); // Placeholder for future history logic
   const navigate = useNavigate();
 
   // Fetch parameter templates and institution values
@@ -34,36 +36,52 @@ const ParametersConfig = () => {
         navigate('/');
         return;
       }
-
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-        
-        // Fetch all available parameters
-        const parametersResponse = await creditParametersService.getAllInstitutionParameters();
-        if (parametersResponse.success) {
-          setParameters(parametersResponse.data.filter(param => param.isActive));
-        }
-
-        // Fetch current parameter values
-        const valuesResponse = await creditParametersService.getInstitutionParameters(user.institutionId);
-        
-        if (valuesResponse.success && valuesResponse.data) {
-          // Map API response to form data
-          const newFormData: Record<string, string> = {};
-          valuesResponse.data.forEach(param => {
-            const parameter = parametersResponse.data.find(p => p.id === param.parameterId);
-            if (parameter) {
-              newFormData[parameter.uniqueCode] = param.value.toString();
-            }
-          });
-          setFormData(newFormData);
-          setHistoryData(valuesResponse.data);
+        // 1. Fetch all parameter templates (admin-created parameters)
+        const templatesRes = await getAllParameters();
+        if (templatesRes.success) {
+          // Filter only active parameters
+          const activeTemplates = templatesRes.data.filter((p) => p.isActive);
+          setParameterTemplates(activeTemplates);
           
-          // Get the most recent update time
-          const mostRecentUpdate = valuesResponse.data.reduce((latest, current) => {
-            return new Date(current.updatedAt) > new Date(latest.updatedAt) ? current : latest;
-          }, valuesResponse.data[0]);
-          setLastUpdated(new Date(mostRecentUpdate.updatedAt).toLocaleString());
+          // Initialize form data with default values (0)
+          const initialFormData: Record<string, string> = {};
+          activeTemplates.forEach((template) => {
+            initialFormData[template.uniqueCode] = '0';
+          });
+          setFormData(initialFormData);
+
+          // 2. Fetch institution's parameter values
+          const instParamsRes = await getParametersForInstitution(user.institutionId);
+          if (instParamsRes.success) {
+            setInstitutionParameters(instParamsRes.data);
+            
+            // 3. Map parameter values to formData by uniqueCode
+            const updatedFormData = { ...initialFormData };
+            instParamsRes.data.forEach((param: InstitutionParameter) => {
+              const template = activeTemplates.find((t: ParameterTemplate) => t.id === param.parameterId);
+              if (template) {
+                updatedFormData[template.uniqueCode] = param.value.toString();
+              }
+            });
+            setFormData(updatedFormData);
+
+            // 4. Set last updated timestamp
+            if (instParamsRes.data.length > 0) {
+              const mostRecentUpdate = instParamsRes.data.reduce((latest, current) => {
+                return new Date(current.updatedAt) > new Date(latest.updatedAt) ? current : latest;
+              }, instParamsRes.data[0]);
+              setLastUpdated(new Date(mostRecentUpdate.updatedAt).toLocaleString());
+            } else {
+              setLastUpdated('Never');
+            }
+          } else {
+            // If no institution parameters exist yet, set default last updated
+            setLastUpdated('Never');
+          }
+        } else {
+          toast.error('Failed to load parameter templates');
         }
       } catch (err) {
         console.error('Error fetching parameters:', err);
@@ -91,27 +109,17 @@ const ParametersConfig = () => {
       navigate('/');
       return;
     }
-
+    setIsSaving(true);
     try {
-      setIsLoading(true);
-      
-      // Convert form data to API format
-      const parametersToUpdate: CreditParameter[] = Object.entries(formData)
-        .map(([uniqueCode, value]) => {
-          const parameter = parameters.find(p => p.uniqueCode === uniqueCode);
-          if (!parameter) return null;
-          return {
-            parameterId: parameter.id,
-            value: parseFloat(value)
-          };
-        })
-        .filter((param): param is CreditParameter => param !== null);
+      // Prepare parameters for API - include all parameters with their current values
+      const parametersToUpdate: CreditParameterInput[] = parameterTemplates.map((template) => ({
+        parameterId: template.id,
+        value: parseFloat(formData[template.uniqueCode] || '0')
+      }));
 
-      const response = await creditParametersService.setInstitutionParameters(user.institutionId, parametersToUpdate);
-      
-      if (response.success) {
-        toast.success('Parameters updated successfully');
-        setIsEditing(false);
+      const res = await setInstitutionParametersService(user.institutionId, parametersToUpdate);
+      if (res.success) {
+        toast.success('Parameters saved successfully');
         setLastUpdated(new Date().toLocaleString());
         
         // Refresh institution parameters to get updated data
@@ -120,7 +128,7 @@ const ParametersConfig = () => {
           setInstitutionParameters(refreshRes.data);
         }
       } else {
-        toast.error(response.message || 'Failed to update parameters');
+        toast.error(res.message || 'Failed to save parameters');
       }
     } catch (err) {
       console.error('Error saving parameters:', err);
@@ -140,16 +148,14 @@ const ParametersConfig = () => {
     setIsSaving(true);
     try {
       // Reset to default values (0 for all parameters)
-      const defaultParameters: CreditParameter[] = parameters.map(param => ({
+      const defaultParameters: CreditParameterInput[] = parameterTemplates.map(param => ({
         parameterId: param.id,
         value: 0
       }));
-
-      const response = await creditParametersService.setInstitutionParameters(user.institutionId, defaultParameters);
-      
+      const response = await setInstitutionParametersService(user.institutionId, defaultParameters);
       if (response.success) {
         const newFormData: Record<string, string> = {};
-        parameters.forEach(param => {
+        parameterTemplates.forEach(param => {
           newFormData[param.uniqueCode] = '0';
         });
         setFormData(newFormData);
@@ -162,7 +168,7 @@ const ParametersConfig = () => {
           setInstitutionParameters(refreshRes.data);
         }
       } else {
-        toast.error(response.data.message || 'Failed to reset parameters');
+        toast.error(response.message || 'Failed to reset parameters');
       }
     } catch (error) {
       console.error('Error resetting parameters:', error);
@@ -245,6 +251,10 @@ const ParametersConfig = () => {
             <div className="flex justify-center items-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
+          ) : parameterTemplates.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No parameters available. Please contact your administrator.</p>
+            </div>
           ) : (
             <form onSubmit={handleSubmit}>
               <div className="space-y-8">
@@ -252,14 +262,15 @@ const ParametersConfig = () => {
                   {parameterTemplates.map((parameter) => (
                     <div key={parameter.id} className="sm:col-span-1">
                       <div className="flex items-center justify-between">
-                        <label htmlFor={parameter.uniqueCode.toString()} className="block text-sm font-medium text-gray-700">
+                        <label htmlFor={parameter.uniqueCode} className="block text-sm font-medium text-gray-700">
                           {parameter.name}
+                          {parameter.isRequired && <span className="text-red-500 ml-1">*</span>}
                         </label>
                         <button
                           aria-label={`Show information about ${parameter.name}`}
                           type="button"
                           className="text-[#008401] hover:text-[#006401] text-sm"
-                          onClick={() => showParameterInfo(parameter.uniqueCode.toString())}
+                          onClick={() => showParameterInfo(parameter.uniqueCode)}
                         >
                           <InfoIcon className="h-4 w-4" />
                         </button>
@@ -269,19 +280,24 @@ const ParametersConfig = () => {
                           type="number"
                           name={parameter.uniqueCode}
                           id={parameter.uniqueCode}
-                          value={formData[parameter.uniqueCode] || ''}
+                          value={getCurrentValue(parameter.uniqueCode)}
                           onChange={handleChange}
-                          disabled={!isEditing || isLoading}
-                          required
+                          disabled={isSaving}
+                          required={parameter.isRequired}
                           fullWidth
                           step="0.1"
+                          className={isParameterModified(parameter.uniqueCode) ? 'border-yellow-300 bg-yellow-50' : ''}
                         />
                       </div>
+                      {isParameterModified(parameter.uniqueCode) && (
+                        <p className="mt-1 text-xs text-yellow-600">Modified</p>
+                      )}
                       {selectedParameter === parameter.uniqueCode && (
                         <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
                           <p><strong>Unique Code:</strong> {parameter.uniqueCode}</p>
                           <p className="mt-1"><strong>Description:</strong> {parameter.description}</p>
-                          <p className="mt-1"><strong>Required:</strong> {parameter.is_required ? 'Yes' : 'No'}</p>
+                          <p className="mt-1"><strong>Recommended Range:</strong> {parameter.recommendedRange}</p>
+                          <p className="mt-1"><strong>Business Impact:</strong> {parameter.impact}</p>
                         </div>
                       )}
                     </div>
@@ -332,33 +348,44 @@ const ParametersConfig = () => {
                   Parameter
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Value
+                  Old Value
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  New Value
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {historyData.map((entry) => (
-                <tr key={entry.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex items-center">
-                      <ClockIcon className="h-4 w-4 mr-1 text-gray-400" />
-                      {new Date(entry.updatedAt).toLocaleString()}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {entry.userName || 'System'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {parameters.find(p => p.id === entry.parameterId)?.name || 'Unknown Parameter'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {entry.oldValue || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {entry.value}
+              {historyData.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                    No change history available
                   </td>
                 </tr>
-              ))}
+              ) : (
+                historyData.map((entry) => (
+                  <tr key={entry.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex items-center">
+                        <ClockIcon className="h-4 w-4 mr-1 text-gray-400" />
+                        {new Date(entry.updatedAt).toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {entry.userName || 'System'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {parameterTemplates.find(p => p.id === entry.parameterId)?.name || 'Unknown Parameter'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {entry.oldValue || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {entry.value}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
