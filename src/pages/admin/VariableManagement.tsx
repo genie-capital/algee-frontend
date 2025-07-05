@@ -312,6 +312,8 @@ const VariableManagement: React.FC = () => {
       };
 
       console.log('Request body being sent to server:', body);
+      console.log('Response type:', formData.responseType);
+      console.log('Min value type:', typeof body.min_value, 'value:', body.min_value);
 
       if (formData.responseType === 'int_float') {
         body.normalisationFormula = formData.normalisationFormula;
@@ -540,7 +542,7 @@ const VariableManagement: React.FC = () => {
                       value={formData.min_value}
                       onChange={(e) => setFormData({ ...formData, min_value: e.target.value })}
                       required
-                      inputProps={{ min: 0 }}
+                      inputProps={{ min: 0, step: 0.01 }}
                     />
                   </Box>
                   <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>

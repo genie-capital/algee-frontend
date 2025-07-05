@@ -6,6 +6,7 @@ import Layout from '../components/Layout';
 import ProcessingModal from '../components/ProcessingModal';
 import { csvUploadService, UploadBatch } from '../services/csvUploadService';
 import { useBatchProcessing } from '../hooks/useBatchProcessing';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BatchJob {
   id: string;
@@ -17,6 +18,7 @@ interface BatchJob {
 
 const BatchAssessment = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -119,7 +121,8 @@ const BatchAssessment = () => {
       const uploadResponse = await csvUploadService.uploadCSV(
         selectedFile,
         selectedFile.name,
-        'Batch upload'
+        'Batch upload',
+        user?.institutionId
       );
 
       if (uploadResponse.success) {

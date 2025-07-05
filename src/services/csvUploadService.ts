@@ -79,13 +79,17 @@ export const csvUploadService = {
   uploadCSV: async (
     file: File,
     batchName: string,
-    batchDescription?: string
+    batchDescription?: string,
+    institutionId?: number
   ): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('csvFile', file);
     formData.append('batchName', batchName);
     if (batchDescription) {
       formData.append('batchDescription', batchDescription);
+    }
+    if (institutionId) {
+      formData.append('institutionId', institutionId.toString());
     }
 
     const response = await api.post('/csv/upload', formData, {
