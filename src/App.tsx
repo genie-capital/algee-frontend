@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -21,23 +21,9 @@ import ParametersConfig from './pages/ParametersConfig';
 import ProtectedRoute from './components/ProtectedRoute';
 import BatchAssessmentDetails from './pages/BatchAssessmentDetails';
 import ClientResultDetails from './components/ClientResultDetails';
-import ClientResultHistory from './components/ClientResultHistory';
 import CategoryManagement from './pages/admin/CategoryManagement';
 import InstitutionParameterManagement from './pages/admin/InstitutionParameterManagement';
 import ParameterManagement from './pages/admin/ParameterManagement';
-
-
-const ClientResultHistoryWrapper = () => {
-  const location = useLocation();
-  const { history } = location.state || {};
-  const { results, clientName, clientReference } = history || {};
-
-  return <ClientResultHistory 
-    results={results || []} 
-    clientName={clientName || ''} 
-    clientReference={clientReference || ''} 
-  />;
-};
 
 export function App() {
   return (
@@ -62,9 +48,7 @@ export function App() {
             </ProtectedRoute>
           } /> 
            
-          {/* Don't forget to ad the ID to the unique batches "/${batchId}" 
-              Also adjust it in batch assessment and assessment results */}
-          <Route path="/batch/${batchId}" element={
+          <Route path="/batch/:batchId" element={
             <ProtectedRoute>
               <BatchAssessmentDetails />
             </ProtectedRoute>
@@ -74,9 +58,9 @@ export function App() {
               <ClientResultDetails />
             </ProtectedRoute>
           } />
-          <Route path="/client/:clientId/history" element={
+          <Route path="/results/client/:clientId/detailed" element={
             <ProtectedRoute>
-              <ClientResultHistoryWrapper />
+              <ClientResultDetails />
             </ProtectedRoute>
           } />
 

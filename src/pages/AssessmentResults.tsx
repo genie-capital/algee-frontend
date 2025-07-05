@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import Layout from '../components/Layout';
 import { useResults } from '../hooks/useResults';
-import { Result, DetailedResult } from '../services/resultsService';
+import { Result } from '../services/resultsService';
 import { formatCurrency } from '../utils/formatters';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -35,13 +35,10 @@ const AssessmentResults = () => {
     summary,
     fetchResults,
     exportResults,
-    getLatestClientResult,
-    getClientResultHistory,
-    compareResults
+    getLatestClientResult
   } = useResults();
 
   const [viewMode, setViewMode] = useState<ViewMode>('batches');
-  const [selectedBatches, setSelectedBatches] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
@@ -81,42 +78,6 @@ const AssessmentResults = () => {
       navigate(`/client/${clientId}`, { state: { result } });
     } catch (error) {
       console.error('Error fetching client details:', error);
-    }
-  };
-
-  const handleViewClientHistory = async (clientId: number) => {
-    try {
-      const history = await getClientResultHistory(clientId, {
-        page: 1,
-        limit: 10,
-        sortBy: 'createdAt',
-        sortOrder: 'DESC'
-      });
-      navigate(`/client/${clientId}/history`, { state: { history } });
-    } catch (error) {
-      console.error('Error fetching client history:', error);
-    }
-  };
-
-  const handleCompareBatches = async () => {
-    if (selectedBatches.length >= 2) {
-      try {
-        const comparison = await compareResults({
-          batch1Id: selectedBatches[0],
-          batch2Id: selectedBatches[1]
-        });
-        navigate('/compare-results', { 
-          state: { 
-            comparison,
-            batchIds: selectedBatches,
-            batchNames: batchSummaries
-              .filter(batch => selectedBatches.includes(batch.id))
-              .map(batch => batch.name)
-          } 
-        });
-      } catch (error) {
-        console.error('Error comparing batches:', error);
-      }
     }
   };
 
@@ -188,50 +149,32 @@ const AssessmentResults = () => {
             Assessment Results
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            {viewMode === 'batches' ? 'View and analyze batch results' : 'View client results'}
+            View and manage credit scoring results
           </p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
-          <div className="flex space-x-2">
+          {viewMode === 'clients' && (
             <Button
-              variant={viewMode === 'batches' ? 'primary' : 'outline'}
+              variant="outline"
               onClick={() => {
                 setViewMode('batches');
                 setSelectedBatchId(null);
                 setFilters(prev => ({ ...prev, uploadBatchId: undefined }));
               }}
             >
-              Batches
-            </Button>
-            <Button
-              variant={viewMode === 'clients' ? 'primary' : 'outline'}
-              onClick={() => setViewMode('clients')}
-            >
-              Clients
-            </Button>
-          </div>
-          {viewMode === 'batches' && selectedBatches.length >= 2 && (
-            <Button
-              variant="primary"
-              onClick={handleCompareBatches}
-            >
-              Compare Selected Batches
+              Back to Batches
             </Button>
           )}
         </div>
       </div>
 
-      {summary && (
+      {summary && viewMode === 'batches' && (
         <div className="grid grid-cols-1 gap-6 mb-8">
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Overall Summary</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">Total Batches</p>
-                <p className="text-2xl font-semibold text-gray-900">{batchSummaries.length}</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">Total Assessments</p>
+                <p className="text-sm text-gray-500">Total Results</p>
                 <p className="text-2xl font-semibold text-gray-900">{summary.totalResults}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
@@ -244,6 +187,12 @@ const AssessmentResults = () => {
                 <p className="text-sm text-gray-500">Average Interest Rate</p>
                 <p className="text-2xl font-semibold text-gray-900">
                   {summary.avgInterestRate.toFixed(2)}%
+                </p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Credit Limit Range</p>
+                <p className="text-sm font-medium">
+                  {formatCurrency(summary.creditLimitRange.min)} - {formatCurrency(summary.creditLimitRange.max)}
                 </p>
               </div>
             </div>
@@ -271,7 +220,7 @@ const AssessmentResults = () => {
           </div>
         </div>
 
-        {viewMode === 'batches' && (
+        {viewMode === 'batches' ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -280,19 +229,16 @@ const AssessmentResults = () => {
                     Batch Name
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date Processed
+                    Upload Date
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Records
+                    Total Clients
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Average Credit Limit
+                    Avg Credit Limit
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Average Interest Rate
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Risk Level
+                    Avg Interest Rate
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -313,74 +259,29 @@ const AssessmentResults = () => {
                       {batch.totalResults}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatCurrency(batch.avgCreditLimit)}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRiskLevelColor(batch.avgCreditLimit)}`}>
+                        {formatCurrency(batch.avgCreditLimit)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {batch.avgInterestRate.toFixed(2)}%
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRiskLevelColor(batch.avgCreditLimit)}`}>
-                        {batch.avgCreditLimit >= 1000000 ? 'Low' : batch.avgCreditLimit >= 500000 ? 'Medium' : 'High'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center space-x-2">
-                        <Button 
-                          variant="outline" 
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleViewDetails(batch.id)}
                         >
                           View Details
                         </Button>
-                        <Menu as="div" className="relative inline-block text-left">
-                          <Menu.Button className="p-2 hover:bg-gray-100 rounded-full">
-                            <EllipsisVerticalIcon className="h-5 w-5 text-gray-500" />
-                          </Menu.Button>
-                          <Transition
-                            as={Fragment}
-                            enter="transition ease-out duration-100"
-                            enterFrom="transform opacity-0 scale-95"
-                            enterTo="transform opacity-100 scale-100"
-                            leave="transition ease-in duration-75"
-                            leaveFrom="transform opacity-100 scale-100"
-                            leaveTo="transform opacity-0 scale-95"
-                          >
-                            <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                              <div className="py-1">
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button
-                                      onClick={() => {
-                                        if (selectedBatches.includes(batch.id)) {
-                                          setSelectedBatches(prev => prev.filter(id => id !== batch.id));
-                                        } else {
-                                          setSelectedBatches(prev => [...prev, batch.id]);
-                                        }
-                                      }}
-                                      className={`${
-                                        active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                                      } flex w-full items-center px-4 py-2 text-sm`}
-                                    >
-                                      {selectedBatches.includes(batch.id) ? 'Deselect for Comparison' : 'Select for Comparison'}
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button
-                                      onClick={() => handleExport(batch.id)}
-                                      className={`${
-                                        active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                                      } flex w-full items-center px-4 py-2 text-sm`}
-                                    >
-                                      Export Results
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                              </div>
-                            </Menu.Items>
-                          </Transition>
-                        </Menu>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleExport(batch.id)}
+                        >
+                          Export
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -388,9 +289,7 @@ const AssessmentResults = () => {
               </tbody>
             </table>
           </div>
-        )}
-
-        {viewMode === 'clients' && (
+        ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -399,7 +298,7 @@ const AssessmentResults = () => {
                     Client
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Latest Assessment
+                    Assessment Date
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Credit Limit
@@ -440,58 +339,15 @@ const AssessmentResults = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {result.uploadBatch.name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <Button 
-                            variant="outline" 
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleViewClientDetails(result.clientId)}
                           >
                             View Details
                           </Button>
-                          <Menu as="div" className="relative inline-block text-left">
-                            <Menu.Button className="p-2 hover:bg-gray-100 rounded-full">
-                              <EllipsisVerticalIcon className="h-5 w-5 text-gray-500" />
-                            </Menu.Button>
-                            <Transition
-                              as={Fragment}
-                              enter="transition ease-out duration-100"
-                              enterFrom="transform opacity-0 scale-95"
-                              enterTo="transform opacity-100 scale-100"
-                              leave="transition ease-in duration-75"
-                              leaveFrom="transform opacity-100 scale-100"
-                              leaveTo="transform opacity-0 scale-95"
-                            >
-                              <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                <div className="py-1">
-                                  <Menu.Item>
-                                    {({ active }) => (
-                                      <button
-                                        onClick={() => handleViewClientHistory(result.clientId)}
-                                        className={`${
-                                          active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                                        } flex w-full items-center px-4 py-2 text-sm`}
-                                      >
-                                        View Client History
-                                      </button>
-                                    )}
-                                  </Menu.Item>
-                                  <Menu.Item>
-                                    {({ active }) => (
-                                      <button
-                                        onClick={() => handleViewDetails(result.uploadBatchId)}
-                                        className={`${
-                                          active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                                        } flex w-full items-center px-4 py-2 text-sm`}
-                                      >
-                                        View Batch Results
-                                      </button>
-                                    )}
-                                  </Menu.Item>
-                                </div>
-                              </Menu.Items>
-                            </Transition>
-                          </Menu>
                         </div>
                       </td>
                     </tr>

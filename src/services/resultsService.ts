@@ -55,55 +55,22 @@ export interface ResultsResponse {
   };
 }
 
-export interface DetailedResult {
-  clientResult: {
-    id: number;
-    creditLimit: number;
-    interestRate: number;
-  };
-  variableBreakdown: Record<string, Array<{
-    variableId: number;
-    variableName: string;
-    uniqueCode: number;
-    responseType: string;
-    rawValue: any;
-    normalizedValue: number;
-    creditLimitWeight: number;
-    interestRateWeight: number;
-    variableProportion: number;
-    categoryWeights: {
-      creditLimit: number;
-      interestRate: number;
-    };
-  }>>;
-  totalVariables: number;
-  categoriesCount: number;
-}
-
-export interface ComparisonResponse {
+export interface BatchResultsResponse {
   success: boolean;
   message: string;
   data: {
-    dataset1: {
-      count: number;
+    results: Result[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+    batchSummary: {
+      totalClients: number;
       avgCreditLimit: number;
       avgInterestRate: number;
-      creditLimitRange: { min: number; max: number };
-      interestRateRange: { min: number; max: number };
-    };
-    dataset2: {
-      count: number;
-      avgCreditLimit: number;
-      avgInterestRate: number;
-      creditLimitRange: { min: number; max: number };
-      interestRateRange: { min: number; max: number };
-    };
-    differences: {
-      countDiff: number;
-      avgCreditLimitDiff: number;
-      avgInterestRateDiff: number;
-      avgCreditLimitPercentChange: number;
-      avgInterestRatePercentChange: number;
+      totalCreditLimit: number;
     };
   };
 }
@@ -137,28 +104,6 @@ export const resultsService = {
     return response.data;
   },
 
-  // Get client result history
-  getClientResultHistory: async (clientId: number, params: {
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: 'ASC' | 'DESC';
-    uploadBatchId?: number;
-  }) => {
-    const response = await api.get(`/results/client/${clientId}/history`, {
-      params
-    });
-    return response.data;
-  },
-
-  // Get detailed client result
-  getDetailedClientResult: async (clientId: number, uploadBatchId?: number): Promise<DetailedResult> => {
-    const response = await api.get(`/results/client/${clientId}/detailed`, {
-      params: { uploadBatchId }
-    });
-    return response.data;
-  },
-
   // Get results by upload batch
   getResultsByBatch: async (uploadBatchId: number, params: {
     page?: number;
@@ -166,24 +111,10 @@ export const resultsService = {
     sortBy?: string;
     sortOrder?: 'ASC' | 'DESC';
     search?: string;
-  }) => {
+  }): Promise<BatchResultsResponse> => {
     const response = await api.get(`/results/batch/${uploadBatchId}`, {
       params
     });
-    return response.data;
-  },
-
-  // Compare results between batches or time periods
-  compareResults: async (params: {
-    batch1Id?: number;
-    batch2Id?: number;
-    dateFrom1?: string;
-    dateTo1?: string;
-    dateFrom2?: string;
-    dateTo2?: string;
-    clientIds?: string;
-  }): Promise<ComparisonResponse> => {
-    const response = await api.get('/results/compare', { params });
     return response.data;
   },
 

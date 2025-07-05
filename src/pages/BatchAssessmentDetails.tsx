@@ -17,7 +17,7 @@ const BatchAssessmentDetails = () => {
     error,
     results,
     pagination,
-    summary,
+    batchSummary,
     getResultsByBatch,
     exportResults
   } = useResults();
@@ -55,6 +55,12 @@ const BatchAssessmentDetails = () => {
         format: 'csv'
       });
     }
+  };
+
+  const handleRowClick = (result: Result) => {
+    navigate(`/results/client/${result.clientId}/detailed`, {
+      state: { uploadBatchId: batchId }
+    });
   };
 
   const getRiskLevelColor = (weight: number) => {
@@ -104,31 +110,31 @@ const BatchAssessmentDetails = () => {
         </div>
       </div>
 
-      {summary && (
+      {batchSummary && (
         <div className="grid grid-cols-1 gap-6 mb-8">
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Batch Summary</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">Total Records</p>
-                <p className="text-2xl font-semibold text-gray-900">{summary.totalResults}</p>
+                <p className="text-sm text-gray-500">Total Clients</p>
+                <p className="text-2xl font-semibold text-gray-900">{batchSummary.totalClients}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Average Credit Limit</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summary.avgCreditLimit)}
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(batchSummary.avgCreditLimit)}
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Average Interest Rate</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {summary.avgInterestRate.toFixed(2)}%
+                  {batchSummary.avgInterestRate.toFixed(2)}%
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">Credit Limit Range</p>
+                <p className="text-sm text-gray-500">Total Credit Limit</p>
                 <p className="text-sm font-medium">
-                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summary.creditLimitRange.min)} - {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(summary.creditLimitRange.max)}
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(batchSummary.totalCreditLimit)}
                 </p>
               </div>
             </div>
@@ -141,6 +147,9 @@ const BatchAssessmentDetails = () => {
           <h3 className="text-lg font-medium text-gray-900">
             Client Assessments
           </h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Click on any row to view detailed results for that client
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -165,7 +174,11 @@ const BatchAssessmentDetails = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {results.map((result) => (
-                <tr key={result.id}>
+                <tr 
+                  key={result.id}
+                  onClick={() => handleRowClick(result)}
+                  className="cursor-pointer hover:bg-gray-50 transition-colors duration-150"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-[#07002F]">{result.client.name}</div>
                     <div className="text-sm text-gray-500">{result.client.reference_number}</div>

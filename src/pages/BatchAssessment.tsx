@@ -20,10 +20,8 @@ const BatchAssessment = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isValidating, setIsValidating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [validationComplete, setValidationComplete] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [batchJobs, setBatchJobs] = useState<UploadBatch[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,8 +58,7 @@ const BatchAssessment = () => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setValidationComplete(false);
-      setValidationError(null);
+      setUploadError(null);
       resetScoring();
     }
   };
@@ -75,46 +72,16 @@ const BatchAssessment = () => {
     const file = event.dataTransfer.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setValidationComplete(false);
-      setValidationError(null);
+      setUploadError(null);
       resetScoring();
     }
   };
 
-  const validateFile = async () => {
+  const processBatch = async () => {
     if (!selectedFile) return;
 
-    setIsValidating(true);
-    setValidationError(null);
-
-    try {
-      // Simulate validation process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const isValid = selectedFile.type === 'text/csv' || 
-                     selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-                     selectedFile.type === 'application/vnd.ms-excel';
-
-      if (isValid) {
-        setValidationComplete(true);
-        setValidationError(null);
-      } else {
-        setValidationError('Invalid file type. Please upload a CSV or Excel file.');
-        setValidationComplete(false);
-      }
-    } catch (error) {
-      setValidationError('Error validating file. Please try again.');
-      setValidationComplete(false);
-    } finally {
-      setIsValidating(false);
-    }
-  };
-
-  const processBatch = async () => {
-    if (!selectedFile || !validationComplete) return;
-
     setIsUploading(true);
-    setValidationError(null);
+    setUploadError(null);
     resetScoring();
 
     try {
@@ -130,6 +97,15 @@ const BatchAssessment = () => {
 
         await fetchBatches();
 
+        // Check if credit scoring was already completed during upload
+        if (uploadResponse.data.creditScoring?.success) {
+          // Credit scoring was completed during upload, just show completion
+          setSelectedFile(null);
+          setIsUploading(false);
+          return;
+        }
+
+        // If credit scoring wasn't completed during upload, start it now
         const detailsResponse = await csvUploadService.getUploadBatchDetails(batchId);
 
         if (detailsResponse.success && detailsResponse.data.clients?.length > 0) {
@@ -138,12 +114,11 @@ const BatchAssessment = () => {
         }
 
         setSelectedFile(null);
-        setValidationComplete(false);
       } else {
-        setValidationError(uploadResponse.message || 'Error processing batch');
+        setUploadError(uploadResponse.message || 'Error processing batch');
       }
     } catch (error: any) {
-      setValidationError(error.response?.data?.message || 'An error occurred. Please try again.');
+      setUploadError(error.response?.data?.message || 'An error occurred. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -230,9 +205,9 @@ const BatchAssessment = () => {
           </div>
           <div className="mt-8 border-t border-gray-200 pt-6">
             <h4 className="text-base font-medium text-gray-900 mb-4">
-              File Validation
+              File Processing
             </h4>
-            {!selectedFile && !validationComplete && (
+            {!selectedFile && (
               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -240,15 +215,14 @@ const BatchAssessment = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-yellow-700">
-                      No file has been uploaded yet. Please upload a file to begin
-                      validation.
+                      No file has been uploaded yet. Please upload a file to begin processing.
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            { (validationError || scoringError) && (
+            { (uploadError || scoringError) && (
               <div className="bg-red-50 border-l-4 border-red-400 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -256,14 +230,14 @@ const BatchAssessment = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-red-700">
-                      {validationError || scoringError}
+                      {uploadError || scoringError}
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {validationComplete && !validationError && (
+            {selectedFile && !uploadError && !scoringError && (
               <div className="bg-green-50 border-l-4 border-green-400 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -271,7 +245,7 @@ const BatchAssessment = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-green-700">
-                      File validation successful. Ready for processing.
+                      File selected and ready for processing.
                     </p>
                   </div>
                 </div>
@@ -287,24 +261,7 @@ const BatchAssessment = () => {
               </div>
             </div>
             <div className="mt-6 flex justify-end">
-              {!validationComplete && selectedFile && (
-                <Button 
-                  variant="outline" 
-                  className="mr-3" 
-                  onClick={validateFile}
-                  disabled={isValidating}
-                >
-                  {isValidating ? (
-                    <>
-                      <Loader2Icon className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                      Validating...
-                    </>
-                  ) : (
-                    'Validate File'
-                  )}
-                </Button>
-              )}
-              {validationComplete && !validationError && (
+              {selectedFile && !uploadError && (
                 <Button 
                   onClick={processBatch}
                   disabled={isUploading || isScoring}
@@ -317,7 +274,7 @@ const BatchAssessment = () => {
                   ) : isScoring ? (
                     <>
                       <Loader2Icon className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                      Scoring...
+                      Processing...
                     </>
                   ) : (
                     'Process Batch'
@@ -371,9 +328,11 @@ const BatchAssessment = () => {
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       job.status === 'completed' 
                         ? 'bg-green-100 text-green-800'
+                        : job.status === 'processing'
+                        ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {job.status === 'completed' ? 'Completed' : 'Failed'}
+                      {job.status === 'completed' ? 'Completed' : job.status === 'processing' ? 'Processing' : 'Failed'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

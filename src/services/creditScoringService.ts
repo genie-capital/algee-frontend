@@ -51,7 +51,7 @@ export const creditScoringService = {
 
   // Calculate results for multiple clients
   calculateBatchResults: async (clientIds: number[], uploadBatchId?: number, institutionId?: number) => {
-    const response = await axios.post(`${API_BASE_URL}/variables/calculate-batch-results`, {
+    const response = await axios.post(`${API_BASE_URL}/variables/calculate-batch`, {
       clientIds,
       uploadBatchId,
       institutionId
@@ -67,3 +67,5 @@ export const creditScoringService = {
     return response.data;
   }
 }; 
+
+// endpoint: /api/results/getAllResult
