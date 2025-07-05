@@ -281,14 +281,12 @@ const VariableManagement: React.FC = () => {
     }
 
     // Validate that min_value is not empty and is a valid number
-    console.log('formData.min_value:', formData.min_value, 'type:', typeof formData.min_value);
     if (formData.min_value === '') {
       setError('Minimum value is required');
       return;
     }
 
     const minValue = parseFloat(formData.min_value);
-    console.log('parsed minValue:', minValue, 'isNaN:', isNaN(minValue), 'minValue < 0:', minValue < 0);
     if (isNaN(minValue) || minValue < 0) {
       setError('Minimum value must be a valid number greater than or equal to 0');
       return;
@@ -312,6 +310,8 @@ const VariableManagement: React.FC = () => {
         variableCategoryId: parseInt(formData.variableCategoryId),
         variableProportion: parseFloat(proportionInputs[editingVariable ? editingVariable.id : 'new'] || formData.variableProportion),
       };
+
+      console.log('Request body being sent to server:', body);
 
       if (formData.responseType === 'int_float') {
         body.normalisationFormula = formData.normalisationFormula;
