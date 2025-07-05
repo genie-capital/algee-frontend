@@ -98,9 +98,9 @@ const InstitutionParameterManagement: React.FC = () => {
 
   const handleEditParameter = async (parameterData: InstitutionParameter & { institutionValue?: number }) => {
     try {
-      if (editMode === 'admin') {
+      if (editMode === 'admin' && isInstitutionSearch && institutionId) {
         await updateInstitutionParameterByAdmin(parameterData.id, {
-          institutionId: 1, // Should be dynamic
+          institutionId: Number(institutionId),
           parameterId: Number(parameterData.uniqueCode),
           value: parameterData.institutionValue ?? 0,
         });
@@ -119,10 +119,11 @@ const InstitutionParameterManagement: React.FC = () => {
       fetchParameters();
     } catch (error) {
       enqueueSnackbar('Failed to update parameter', { variant: 'error' });
+      throw error; // Re-throw to let the modal handle the error display
     }
   };
 
-  const handleDeleteParameter = async (id: number) => {
+  const handleDeleteParameter: (id: number) => Promise<void> = async (id) => {
     try {
       await deleteParameter(id);
       enqueueSnackbar('Parameter deleted successfully', { variant: 'success' });
@@ -246,6 +247,8 @@ const InstitutionParameterManagement: React.FC = () => {
           onSubmit={handleEditParameter}
           parameter={selectedParameter}
           showInstitutionValueField={isInstitutionSearch}
+          editMode={editMode}
+          institutionId={institutionId ? Number(institutionId) : undefined}
         />
       )}
       </div>

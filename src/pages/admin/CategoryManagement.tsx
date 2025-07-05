@@ -265,7 +265,7 @@ const CategoryManagement: React.FC = () => {
                       value={formData.creditLimitWeight}
                       onChange={(e) => setFormData({ ...formData, creditLimitWeight: parseFloat(e.target.value) })}
                       required
-                      inputProps={{ step: 0.1, min: 0, max: 1 }}
+                      inputProps={{ step: 1, min: 0, max: 100 }}
                     />
                     <TextField
                       fullWidth
@@ -274,7 +274,7 @@ const CategoryManagement: React.FC = () => {
                       value={formData.interestRateWeight}
                       onChange={(e) => setFormData({ ...formData, interestRateWeight: parseFloat(e.target.value) })}
                       required
-                      inputProps={{ step: 0.1, min: 0, max: 1 }}
+                      inputProps={{ step: 1, min: 0, max: 100 }}
                     />
                   </Box>
                 </Box>

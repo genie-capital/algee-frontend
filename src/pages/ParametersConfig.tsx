@@ -234,9 +234,8 @@ const ParametersConfig = () => {
                         <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
                           <p><strong>Unique Code:</strong> {parameter.uniqueCode}</p>
                           <p className="mt-1"><strong>Description:</strong> {parameter.description}</p>
-                          {/* If you have recommendedRange and impact, display them here. Otherwise, remove these lines. */}
-                          {/* <p className="mt-1"><strong>Recommended Range:</strong> {parameter.recommendedRange}</p> */}
-                          {/* <p className="mt-1"><strong>Business Impact:</strong> {parameter.impact}</p> */}
+                          <p className="mt-1"><strong>Recommended Range:</strong> {parameter.recommendedRange}</p>
+                          <p className="mt-1"><strong>Business Impact:</strong> {parameter.impact}</p>
                         </div>
                       )}
                     </div>

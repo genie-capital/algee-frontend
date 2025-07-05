@@ -6,6 +6,8 @@ export interface ParameterTemplate {
   name: string;
   uniqueCode: string;
   description: string;
+  recommendedRange: string; 
+  impact: string; 
   isActive: boolean;
   isRequired: boolean;
   createdAt: string;
@@ -69,5 +71,5 @@ export const updateInstitutionParameter = async (
 export const deleteInstitutionParameter = async (
   id: number
 ): Promise<{ success: boolean; message?: string }> => {
-  return await api.delete(`/institution/deleteParameter/${id}`);
+  return await api.delete(`/institution/deleteParameter/${id}`);                                                                                                          
 };
