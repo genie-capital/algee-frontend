@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InfoIcon, ClockIcon, HistoryIcon, RefreshCcwIcon, SaveIcon } from 'lucide-react';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
-import Layout from '../components/Layout';
+
 import {
   getAllParameters,
   getParametersForInstitution,
@@ -42,9 +42,8 @@ const ParametersConfig = () => {
         const templatesRes = await getAllParameters();
         if (templatesRes.success) {
           // Filter only active parameters
-          const activeTemplates = templatesRes.data.filter((p) => p.isActive);
+          const activeTemplates = templatesRes.data.filter((p) => p.is_active);
           setParameterTemplates(activeTemplates);
-          
           // Initialize form data with default values (0)
           const initialFormData: Record<string, string> = {};
           activeTemplates.forEach((template) => {
