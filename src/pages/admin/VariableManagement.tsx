@@ -139,7 +139,7 @@ const VariableManagement: React.FC = () => {
         v => v.variableCategoryId === Number(formData.variableCategoryId)
       );
       
-      // For edit mode, exclude the current variable being edited
+      // For edit mode, exclude the current variable being edited from display
       const categoryVariablesForDisplay = editingVariable 
         ? filtered.filter(v => v.id !== editingVariable.id)
         : filtered;
@@ -147,13 +147,17 @@ const VariableManagement: React.FC = () => {
       setCategoryVariables(categoryVariablesForDisplay);
       const initialInputs: { [id: string]: string } = {};
       
-      categoryVariablesForDisplay.forEach((v: Variable) => {
-        initialInputs[v.id] = String(v.variableProportion);
+      // Initialize all existing variables in the category (including the one being edited)
+      filtered.forEach((v: Variable) => {
+        if (editingVariable && v.id === editingVariable.id) {
+          initialInputs[v.id] = formData.variableProportion || '';
+        } else {
+          initialInputs[v.id] = String(v.variableProportion);
+        }
       });
       
-      if (editingVariable) {
-        initialInputs['editing'] = formData.variableProportion || '';
-      } else {
+      // Add the new variable key
+      if (!editingVariable) {
         initialInputs['new'] = formData.variableProportion || '';
       }
       
@@ -250,11 +254,42 @@ const VariableManagement: React.FC = () => {
 
     // Apply proportion validation for both creation and editing when there are other variables in the category
     if (categoryVariables.length > 0) {
-      const total = Object.values(proportionInputs).reduce((sum, v) => sum + Number(v || 0), 0);
+      // Get all variables in the category including the one being edited
+      const allCategoryVariables = variables.filter(
+        v => v.variableCategoryId === Number(formData.variableCategoryId)
+      );
+      
+      // Calculate total including all variables
+      let total = 0;
+      allCategoryVariables.forEach(v => {
+        if (editingVariable && v.id === editingVariable.id) {
+          total += Number(proportionInputs[v.id] || formData.variableProportion || 0);
+        } else {
+          total += Number(proportionInputs[v.id] || v.variableProportion || 0);
+        }
+      });
+      
+      // Add the new variable if creating
+      if (!editingVariable) {
+        total += Number(proportionInputs['new'] || formData.variableProportion || 0);
+      }
+      
       if (total !== 100) {
         setError('Total proportion for all variables in this category must be exactly 100%');
         return;
       }
+    }
+
+    // Validate that min_value is not empty and is a valid number
+    if (!formData.min_value || formData.min_value === '') {
+      setError('Minimum value is required');
+      return;
+    }
+
+    const minValue = parseFloat(formData.min_value);
+    if (isNaN(minValue) || minValue < 0) {
+      setError('Minimum value must be a valid number greater than or equal to 0');
+      return;
     }
 
     try {
@@ -273,7 +308,7 @@ const VariableManagement: React.FC = () => {
         max_value: parseFloat(formData.max_value),
         responseType: formData.responseType,
         variableCategoryId: parseInt(formData.variableCategoryId),
-        variableProportion: parseFloat(proportionInputs[editingVariable ? 'editing' : 'new'] || formData.variableProportion),
+        variableProportion: parseFloat(proportionInputs[editingVariable ? editingVariable.id : 'new'] || formData.variableProportion),
       };
 
       if (formData.responseType === 'int_float') {
@@ -289,10 +324,17 @@ const VariableManagement: React.FC = () => {
 
       // Add redistributeProportions if there are existing variables in the category
       if (categoryVariables.length > 0) {
-        body.redistributeProportions = categoryVariables.map(v => ({
+        // Get all variables in the category for redistribution
+        const allCategoryVariables = variables.filter(
+          v => v.variableCategoryId === Number(formData.variableCategoryId)
+        );
+        
+        body.redistributeProportions = allCategoryVariables.map(v => ({
           variableId: v.id,
-          proportion: parseFloat(proportionInputs[v.id] || '0')
+          proportion: parseFloat(proportionInputs[v.id] || String(v.variableProportion) || '0')
         }));
+        
+        console.log('Redistributing proportions for variables:', body.redistributeProportions);
       }
 
       const response = await fetch(url, {
@@ -641,10 +683,10 @@ const VariableManagement: React.FC = () => {
                               <TableCell>
                                 <TextField
                                   type="number"
-                                  value={proportionInputs[editingVariable ? 'editing' : 'new'] || ''}
+                                  value={proportionInputs[editingVariable ? editingVariable.id : 'new'] || ''}
                                   onChange={e => {
                                     const value = e.target.value;
-                                    const key = editingVariable ? 'editing' : 'new';
+                                    const key = editingVariable ? editingVariable.id : 'new';
                                     setProportionInputs(prev => ({ ...prev, [key]: value }));
                                     setFormData(prev => ({ ...prev, variableProportion: value }));
                                   }}
