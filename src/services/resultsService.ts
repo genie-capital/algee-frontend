@@ -92,13 +92,13 @@ export const resultsService = {
     dateTo?: string;
     clientId?: number;
   }): Promise<ResultsResponse> => {
-    const response = await api.get('/results', { params });
+    const response = await api.get('/results', );
     return response.data;
   },
 
   // Get latest client result
   getLatestClientResult: async (clientId: number, uploadBatchId?: number) => {
-    const response = await api.get(`/results/client/${clientId}/latest`, {
+    const response = await api.get(`/results/client/:clientId/latest`, {
       params: { uploadBatchId }
     });
     return response.data;

@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { UploadIcon, FileTextIcon, AlertCircleIcon, CheckCircleIcon, Loader2Icon } from 'lucide-react';
 import Button from '../components/common/Button';
 import Layout from '../components/Layout';
-import ProcessingModal from '../components/ProcessingModal';
 import { csvUploadService, UploadBatch } from '../services/csvUploadService';
-import { useBatchProcessing } from '../hooks/useBatchProcessing';
 import { useAuth } from '../contexts/AuthContext';
 
 interface BatchJob {
@@ -25,16 +23,7 @@ const BatchAssessment = () => {
   const [batchJobs, setBatchJobs] = useState<UploadBatch[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    isProcessing: isScoring,
-    totalClients,
-    processedClients,
-    failedClients,
-    isComplete: isScoringComplete,
-    error: scoringError,
-    processBatch: runCreditScoring,
-    reset: resetScoring
-  } = useBatchProcessing();
+
 
   useEffect(() => {
     fetchBatches();
@@ -59,7 +48,6 @@ const BatchAssessment = () => {
     if (file) {
       setSelectedFile(file);
       setUploadError(null);
-      resetScoring();
     }
   };
 
@@ -73,7 +61,6 @@ const BatchAssessment = () => {
     if (file) {
       setSelectedFile(file);
       setUploadError(null);
-      resetScoring();
     }
   };
 
@@ -82,9 +69,9 @@ const BatchAssessment = () => {
 
     setIsUploading(true);
     setUploadError(null);
-    resetScoring();
 
     try {
+      // Call the CSV upload endpoint which handles the complete process
       const uploadResponse = await csvUploadService.uploadCSV(
         selectedFile,
         selectedFile.name,
@@ -93,27 +80,20 @@ const BatchAssessment = () => {
       );
 
       if (uploadResponse.success) {
-        const batchId = uploadResponse.data.uploadBatchId;
-
+        // Refresh the batch list to show the new upload
         await fetchBatches();
-
-        // Check if credit scoring was already completed during upload
-        if (uploadResponse.data.creditScoring?.success) {
-          // Credit scoring was completed during upload, just show completion
-          setSelectedFile(null);
-          setIsUploading(false);
-          return;
-        }
-
-        // If credit scoring wasn't completed during upload, start it now
-        const detailsResponse = await csvUploadService.getUploadBatchDetails(batchId);
-
-        if (detailsResponse.success && detailsResponse.data.clients?.length > 0) {
-          const clientIds = detailsResponse.data.clients.map(client => client.id);
-          await runCreditScoring(clientIds, batchId);
-        }
-
+        
+        // Clear the selected file
         setSelectedFile(null);
+        
+        // Show success message or handle any warnings/errors from the response
+        if (uploadResponse.data.errors && uploadResponse.data.errors.length > 0) {
+          console.warn('Some records had errors:', uploadResponse.data.errors);
+        }
+        
+        if (uploadResponse.data.processing.failedRecords > 0) {
+          console.warn(`${uploadResponse.data.processing.failedRecords} records failed to process`);
+        }
       } else {
         setUploadError(uploadResponse.message || 'Error processing batch');
       }
@@ -222,7 +202,7 @@ const BatchAssessment = () => {
               </div>
             )}
 
-            { (uploadError || scoringError) && (
+            {uploadError && (
               <div className="bg-red-50 border-l-4 border-red-400 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -230,14 +210,14 @@ const BatchAssessment = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-red-700">
-                      {uploadError || scoringError}
+                      {uploadError}
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {selectedFile && !uploadError && !scoringError && (
+            {selectedFile && !uploadError && (
               <div className="bg-green-50 border-l-4 border-green-400 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -264,17 +244,12 @@ const BatchAssessment = () => {
               {selectedFile && !uploadError && (
                 <Button 
                   onClick={processBatch}
-                  disabled={isUploading || isScoring}
+                  disabled={isUploading}
                 >
                   {isUploading ? (
                     <>
                       <Loader2Icon className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                      Uploading...
-                    </>
-                  ) : isScoring ? (
-                    <>
-                      <Loader2Icon className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                      Processing...
+                      Processing Batch...
                     </>
                   ) : (
                     'Process Batch'
@@ -353,24 +328,7 @@ const BatchAssessment = () => {
         </div>
       </div>
 
-      {isScoring && (
-        <ProcessingModal
-          isOpen={isScoring}
-          totalClients={totalClients}
-          processedClients={processedClients}
-          failedClients={failedClients}
-          isComplete={isScoringComplete}
-          error={scoringError ?? undefined}
-          onClose={resetScoring}
-          onViewResults={() => {
-            resetScoring();
-            const latestBatch = batchJobs[0];
-            if (latestBatch) {
-              handleViewResults(latestBatch.id);
-            }
-          }}
-        />
-      )}
+
     </>
   );
 };
