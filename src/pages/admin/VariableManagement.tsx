@@ -133,21 +133,36 @@ const VariableManagement: React.FC = () => {
   }, [token]);
 
   useEffect(() => {
-    if (openDialog && !editingVariable && formData.variableCategoryId) {
-      // Fallback: filter from all variables in state
+    if (openDialog && formData.variableCategoryId) {
+      // Filter variables by category for both new and edit modes
       const filtered = variables.filter(
         v => v.variableCategoryId === Number(formData.variableCategoryId)
       );
-      setCategoryVariables(filtered);
+      
+      // For edit mode, exclude the current variable being edited
+      const categoryVariablesForDisplay = editingVariable 
+        ? filtered.filter(v => v.id !== editingVariable.id)
+        : filtered;
+      
+      setCategoryVariables(categoryVariablesForDisplay);
       const initialInputs: { [id: string]: string } = {};
-      filtered.forEach((v: Variable) => {
+      
+      categoryVariablesForDisplay.forEach((v: Variable) => {
         initialInputs[v.id] = String(v.variableProportion);
       });
-      initialInputs['new'] = formData.variableProportion || '';
+      
+      if (editingVariable) {
+        initialInputs['editing'] = formData.variableProportion || '';
+      } else {
+        initialInputs['new'] = formData.variableProportion || '';
+      }
+      
       setProportionInputs(initialInputs);
     } else if (!formData.variableCategoryId) {
       setCategoryVariables([]);
-      setProportionInputs({ new: formData.variableProportion || '' });
+      setProportionInputs({ 
+        [editingVariable ? 'editing' : 'new']: formData.variableProportion || '' 
+      });
     }
   }, [formData.variableCategoryId, openDialog, editingVariable, variables]);
 
@@ -233,8 +248,8 @@ const VariableManagement: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Only apply for creation, not editing
-    if (!editingVariable && categoryVariables.length > 0) {
+    // Apply proportion validation for both creation and editing when there are other variables in the category
+    if (categoryVariables.length > 0) {
       const total = Object.values(proportionInputs).reduce((sum, v) => sum + Number(v || 0), 0);
       if (total !== 100) {
         setError('Total proportion for all variables in this category must be exactly 100%');
@@ -258,7 +273,7 @@ const VariableManagement: React.FC = () => {
         max_value: parseFloat(formData.max_value),
         responseType: formData.responseType,
         variableCategoryId: parseInt(formData.variableCategoryId),
-        variableProportion: parseFloat(proportionInputs['new'] || formData.variableProportion),
+        variableProportion: parseFloat(proportionInputs[editingVariable ? 'editing' : 'new'] || formData.variableProportion),
       };
 
       if (formData.responseType === 'int_float') {
@@ -272,8 +287,8 @@ const VariableManagement: React.FC = () => {
         }));
       }
 
-      // Add redistributeProportions if creating and there are existing variables
-      if (!editingVariable && categoryVariables.length > 0) {
+      // Add redistributeProportions if there are existing variables in the category
+      if (categoryVariables.length > 0) {
         body.redistributeProportions = categoryVariables.map(v => ({
           variableId: v.id,
           proportion: parseFloat(proportionInputs[v.id] || '0')
@@ -478,6 +493,7 @@ const VariableManagement: React.FC = () => {
                       value={formData.min_value}
                       onChange={(e) => setFormData({ ...formData, min_value: e.target.value })}
                       required
+                      inputProps={{ min: 0 }}
                     />
                   </Box>
                   <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
@@ -498,7 +514,7 @@ const VariableManagement: React.FC = () => {
                       value={formData.variableProportion}
                       onChange={(e) => setFormData({ ...formData, variableProportion: e.target.value })}
                       required
-                      inputProps={{ min: 0, max: 100 }}
+                      inputProps={{ min: 0, max: 100, step: 0.01 }}
                     />
                   </Box>
                   <Box sx={{ p: 1, width: { xs: '100%', sm: '50%' } }}>
@@ -588,8 +604,8 @@ const VariableManagement: React.FC = () => {
                     </Box>
                   )}
 
-                  {/* Proportion Redistribution Table for New Variable Creation */}
-                  {!editingVariable && categoryVariables.length > 0 && (
+                  {/* Proportion Redistribution Table for Variable Creation/Editing */}
+                  {categoryVariables.length > 0 && (
                     <Box sx={{ p: 1, width: '100%' }}>
                       <Typography variant="h6" gutterBottom>Set Proportions for Variables in this Category</Typography>
                       <TableContainer>
@@ -612,7 +628,7 @@ const VariableManagement: React.FC = () => {
                                       const value = e.target.value;
                                       setProportionInputs(prev => ({ ...prev, [v.id]: value }));
                                     }}
-                                    inputProps={{ min: 0, max: 100 }}
+                                    inputProps={{ min: 0, max: 100, step: 0.01 }}
                                     size="small"
                                   />
                                 </TableCell>
@@ -620,18 +636,19 @@ const VariableManagement: React.FC = () => {
                             ))}
                             <TableRow>
                               <TableCell>
-                                <b>New Variable</b>
+                                <b>{editingVariable ? 'Editing Variable' : 'New Variable'}</b>
                               </TableCell>
                               <TableCell>
                                 <TextField
                                   type="number"
-                                  value={proportionInputs['new'] || ''}
+                                  value={proportionInputs[editingVariable ? 'editing' : 'new'] || ''}
                                   onChange={e => {
                                     const value = e.target.value;
-                                    setProportionInputs(prev => ({ ...prev, new: value }));
+                                    const key = editingVariable ? 'editing' : 'new';
+                                    setProportionInputs(prev => ({ ...prev, [key]: value }));
                                     setFormData(prev => ({ ...prev, variableProportion: value }));
                                   }}
-                                  inputProps={{ min: 0, max: 100 }}
+                                  inputProps={{ min: 0, max: 100, step: 0.01 }}
                                   size="small"
                                   required
                                 />
