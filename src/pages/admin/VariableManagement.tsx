@@ -57,6 +57,7 @@ interface Variable {
   variableProportion: number;
   createdAt: string;
   updatedAt: string;
+  categoryMappings?: CategoryMapping[];
 }
 
 const VariableManagement: React.FC = () => {
@@ -186,7 +187,9 @@ const VariableManagement: React.FC = () => {
         normalisationFormula: variable.normalisationFormula || '',
         variableCategoryId: String(variable.variableCategoryId),
         variableProportion: String(variable.variableProportion),
-        categoryMappings: [] // Note: categoryMappings are not fetched for edit yet
+        categoryMappings: variable.responseType === 'categorical' && variable.categoryMappings
+          ? variable.categoryMappings.map(m => ({ ...m }))
+          : []
       });
     } else {
       setEditingVariable(null);
