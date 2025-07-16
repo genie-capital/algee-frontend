@@ -187,8 +187,9 @@ const VariableManagement: React.FC = () => {
         normalisationFormula: variable.normalisationFormula || '',
         variableCategoryId: String(variable.variableCategoryId),
         variableProportion: String(variable.variableProportion),
-        categoryMappings: variable.responseType === 'categorical' && variable.categoryMappings
-          ? variable.categoryMappings.map(m => ({ ...m }))
+        // Always set categoryMappings for categorical, even if empty
+        categoryMappings: variable.responseType === 'categorical'
+          ? (variable.categoryMappings ? variable.categoryMappings.map(m => ({ ...m })) : [])
           : []
       });
     } else {
