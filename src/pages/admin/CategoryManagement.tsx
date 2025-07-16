@@ -46,8 +46,8 @@ const CategoryManagement: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    creditLimitWeight: 0,
-    interestRateWeight: 0
+    creditLimitWeight: '' as string | number,
+    interestRateWeight: '' as string | number
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -93,8 +93,8 @@ const CategoryManagement: React.FC = () => {
       setFormData({
         name: '',
         description: '',
-        creditLimitWeight: 0,
-        interestRateWeight: 0
+        creditLimitWeight: '',
+        interestRateWeight: ''
       });
     }
     setOpenDialog(true);
@@ -106,8 +106,8 @@ const CategoryManagement: React.FC = () => {
     setFormData({
       name: '',
       description: '',
-      creditLimitWeight: 0,
-      interestRateWeight: 0
+      creditLimitWeight: '',
+      interestRateWeight: ''
     });
   };
 
@@ -115,6 +115,19 @@ const CategoryManagement: React.FC = () => {
     e.preventDefault();
     if (!token) {
       setError('Authentication required');
+      return;
+    }
+
+    // Validate that weights are not empty and are within range
+    if (
+      (typeof formData.creditLimitWeight === 'string' && formData.creditLimitWeight === '') ||
+      (typeof formData.interestRateWeight === 'string' && formData.interestRateWeight === '') ||
+      Number(formData.creditLimitWeight) < 0 ||
+      Number(formData.creditLimitWeight) > 100 ||
+      Number(formData.interestRateWeight) < 0 ||
+      Number(formData.interestRateWeight) > 100
+    ) {
+      setError('Weights must be between 0 and 100.');
       return;
     }
 
@@ -262,8 +275,8 @@ const CategoryManagement: React.FC = () => {
                       fullWidth
                       label="Credit Limit Weight"
                       type="number"
-                      value={formData.creditLimitWeight}
-                      onChange={(e) => setFormData({ ...formData, creditLimitWeight: parseFloat(e.target.value) })}
+                      value={formData.creditLimitWeight === '' ? '' : String(formData.creditLimitWeight)}
+                      onChange={(e) => setFormData({ ...formData, creditLimitWeight: e.target.value === '' ? '' : parseFloat(e.target.value) })}
                       required
                       inputProps={{ step: 1, min: 0, max: 100 }}
                     />
@@ -271,8 +284,8 @@ const CategoryManagement: React.FC = () => {
                       fullWidth
                       label="Interest Rate Weight"
                       type="number"
-                      value={formData.interestRateWeight}
-                      onChange={(e) => setFormData({ ...formData, interestRateWeight: parseFloat(e.target.value) })}
+                      value={formData.interestRateWeight === '' ? '' : String(formData.interestRateWeight)}
+                      onChange={(e) => setFormData({ ...formData, interestRateWeight: e.target.value === '' ? '' : parseFloat(e.target.value) })}
                       required
                       inputProps={{ step: 1, min: 0, max: 100 }}
                     />
