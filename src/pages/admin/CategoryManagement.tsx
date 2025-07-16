@@ -118,18 +118,26 @@ const CategoryManagement: React.FC = () => {
       return;
     }
 
-    // Validate that weights are not empty and are within range
+    // Ensure weights are numbers, defaulting to 0 if empty
+    const creditLimitWeight = formData.creditLimitWeight === '' ? 0 : Number(formData.creditLimitWeight);
+    const interestRateWeight = formData.interestRateWeight === '' ? 0 : Number(formData.interestRateWeight);
+
+    // Validate that weights are within range
     if (
-      (typeof formData.creditLimitWeight === 'string' && formData.creditLimitWeight === '') ||
-      (typeof formData.interestRateWeight === 'string' && formData.interestRateWeight === '') ||
-      Number(formData.creditLimitWeight) < 0 ||
-      Number(formData.creditLimitWeight) > 100 ||
-      Number(formData.interestRateWeight) < 0 ||
-      Number(formData.interestRateWeight) > 100
+      creditLimitWeight < 0 ||
+      creditLimitWeight > 100 ||
+      interestRateWeight < 0 ||
+      interestRateWeight > 100
     ) {
       setError('Weights must be between 0 and 100.');
       return;
     }
+
+    const payload = {
+      ...formData,
+      creditLimitWeight,
+      interestRateWeight,
+    };
 
     try {
       const url = editingCategory
@@ -142,7 +150,7 @@ const CategoryManagement: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
