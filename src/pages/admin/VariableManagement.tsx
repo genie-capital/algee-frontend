@@ -112,7 +112,7 @@ const VariableManagement: React.FC = () => {
 
   const fetchVariables = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/variable/all`, {
+      const response = await fetch(`${API_BASE_URL}/variable/all?includeAssociations=true`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -131,7 +131,7 @@ const VariableManagement: React.FC = () => {
 
   // Add fetchVariableById helper function
   const fetchVariableById = async (id: number) => {
-    const response = await fetch(`${API_BASE_URL}/variable/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/variable/${id}?includeAssociations=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await response.json();
