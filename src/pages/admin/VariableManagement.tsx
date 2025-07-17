@@ -118,6 +118,7 @@ const VariableManagement: React.FC = () => {
         }
       });
       const data = await response.json();
+      console.log('API /variable/all response:', data);
       if (data.success) {
         setVariables(data.data);
       } else {
@@ -126,6 +127,15 @@ const VariableManagement: React.FC = () => {
     } catch (err) {
       setError('Failed to fetch variables');
     }
+  };
+
+  // Add fetchVariableById helper function
+  const fetchVariableById = async (id: number) => {
+    const response = await fetch(`${API_BASE_URL}/variable/${id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    return data.data;
   };
 
   useEffect(() => {
@@ -171,25 +181,29 @@ const VariableManagement: React.FC = () => {
     }
   }, [formData.variableCategoryId, openDialog, editingVariable, variables]);
 
-  const handleOpenDialog = (variable?: Variable) => {
+  const handleOpenDialog = async (variable?: Variable) => {
     if (variable) {
-      setEditingVariable(variable);
+      let fullVariable = variable;
+      if (variable.responseType === 'categorical' && !variable.categoryMappings) {
+        // Fetch full details if mappings are missing
+        fullVariable = await fetchVariableById(variable.id);
+      }
+      setEditingVariable(fullVariable);
       setFormData({
-        name: variable.name,
-        description: variable.description,
-        uniqueCode: String(variable.uniqueCode),
-        is_required: variable.is_required,
-        mask: variable.mask,
-        isUsedInFormula: variable.isUsedInFormula,
-        min_value: String(variable.min_value),
-        max_value: String(variable.max_value),
-        responseType: variable.responseType,
-        normalisationFormula: variable.normalisationFormula || '',
-        variableCategoryId: String(variable.variableCategoryId),
-        variableProportion: String(variable.variableProportion),
-        // Always set categoryMappings for categorical, even if empty
-        categoryMappings: variable.responseType === 'categorical'
-          ? (variable.categoryMappings ? variable.categoryMappings.map(m => ({ ...m })) : [])
+        name: fullVariable.name,
+        description: fullVariable.description,
+        uniqueCode: String(fullVariable.uniqueCode),
+        is_required: fullVariable.is_required,
+        mask: fullVariable.mask,
+        isUsedInFormula: fullVariable.isUsedInFormula,
+        min_value: String(fullVariable.min_value),
+        max_value: String(fullVariable.max_value),
+        responseType: fullVariable.responseType,
+        normalisationFormula: fullVariable.normalisationFormula || '',
+        variableCategoryId: String(fullVariable.variableCategoryId),
+        variableProportion: String(fullVariable.variableProportion),
+        categoryMappings: fullVariable.responseType === 'categorical'
+          ? (fullVariable.categoryMappings ? fullVariable.categoryMappings.map(m => ({ ...m })) : [])
           : []
       });
     } else {
@@ -454,7 +468,7 @@ const VariableManagement: React.FC = () => {
                       <TableCell>{variable.min_value}</TableCell>
                       <TableCell>{variable.max_value}</TableCell>
                       <TableCell>
-                        <IconButton onClick={() => handleOpenDialog(variable)}>
+                        <IconButton onClick={async () => await handleOpenDialog(variable)}>
                           <PencilIcon size={20} />
                         </IconButton>
                         <IconButton onClick={() => handleDelete(variable.id)}>
