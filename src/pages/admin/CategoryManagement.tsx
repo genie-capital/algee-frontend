@@ -285,7 +285,6 @@ const CategoryManagement: React.FC = () => {
                       type="number"
                       value={formData.creditLimitWeight === '' ? '' : String(formData.creditLimitWeight)}
                       onChange={(e) => setFormData({ ...formData, creditLimitWeight: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                      required
                       inputProps={{ step: 1, min: 0, max: 100 }}
                     />
                     <TextField
@@ -294,7 +293,6 @@ const CategoryManagement: React.FC = () => {
                       type="number"
                       value={formData.interestRateWeight === '' ? '' : String(formData.interestRateWeight)}
                       onChange={(e) => setFormData({ ...formData, interestRateWeight: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                      required
                       inputProps={{ step: 1, min: 0, max: 100 }}
                     />
                   </Box>
