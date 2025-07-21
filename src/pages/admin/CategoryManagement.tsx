@@ -111,13 +111,25 @@ const CategoryManagement: React.FC = () => {
       return;
     }
 
+    // Ensure all fields are filled
+    if (!formData.name.trim() || !formData.description.trim()) {
+      setError('Name and description are required.');
+      return;
+    }
+
     // Ensure weights are numbers, defaulting to 0 if empty or invalid
     const creditLimitWeightValue = Number(formData.creditLimitWeight);
     const interestRateWeightValue = Number(formData.interestRateWeight);
     
-    const creditLimitWeight = isNaN(creditLimitWeightValue) ? 0 : creditLimitWeightValue;
-    const interestRateWeight = isNaN(interestRateWeightValue) ? 0 : interestRateWeightValue;
+    if (
+      isNaN(creditLimitWeightValue) || isNaN(interestRateWeightValue)
+    ) {
+      setError('Credit Limit Weight and Interest Rate Weight must be numbers.');
+      return;
+    }
 
+    const creditLimitWeight = creditLimitWeightValue;
+    const interestRateWeight = interestRateWeightValue;
 
     // Validate that weights are within range
     if (
@@ -131,11 +143,13 @@ const CategoryManagement: React.FC = () => {
     }
 
     const payload = {
-      name: formData.name,
-      description: formData.description,
+      name: formData.name.trim(),
+      description: formData.description.trim(),
       creditLimitWeight,
       interestRateWeight,
     };
+
+    console.log('Submitting payload:', payload);
 
     try {
       const url = editingCategory
