@@ -102,13 +102,6 @@ const CategoryManagement: React.FC = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setEditingCategory(null);
-    setFormData({
-      name: '',
-      description: '',
-      creditLimitWeight: '',
-      interestRateWeight: ''
-    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -118,9 +111,13 @@ const CategoryManagement: React.FC = () => {
       return;
     }
 
-    // Ensure weights are numbers, defaulting to 0 if empty
-    const creditLimitWeight = formData.creditLimitWeight === '' ? 0 : Number(formData.creditLimitWeight);
-    const interestRateWeight = formData.interestRateWeight === '' ? 0 : Number(formData.interestRateWeight);
+    // Ensure weights are numbers, defaulting to 0 if empty or invalid
+    const creditLimitWeightValue = Number(formData.creditLimitWeight);
+    const interestRateWeightValue = Number(formData.interestRateWeight);
+    
+    const creditLimitWeight = isNaN(creditLimitWeightValue) ? 0 : creditLimitWeightValue;
+    const interestRateWeight = isNaN(interestRateWeightValue) ? 0 : interestRateWeightValue;
+
 
     // Validate that weights are within range
     if (
@@ -134,7 +131,8 @@ const CategoryManagement: React.FC = () => {
     }
 
     const payload = {
-      ...formData,
+      name: formData.name,
+      description: formData.description,
       creditLimitWeight,
       interestRateWeight,
     };
