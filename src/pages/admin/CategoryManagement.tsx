@@ -150,6 +150,8 @@ const CategoryManagement: React.FC = () => {
       creditLimitWeight: typeof payload.creditLimitWeight,
       interestRateWeight: typeof payload.interestRateWeight,
     });
+    // Log the exact JSON string sent to backend
+    console.log('Payload JSON:', JSON.stringify(payload));
 
     try {
       const url = editingCategory
