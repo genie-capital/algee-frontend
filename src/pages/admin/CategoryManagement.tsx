@@ -168,6 +168,8 @@ const CategoryManagement: React.FC = () => {
       });
 
       const data = await response.json();
+      // Log backend response for debugging
+      console.log('Backend response:', data);
       if (data.success) {
         setSuccess(editingCategory ? 'Category updated successfully' : 'Category created successfully');
         setOpenDialog(false);
