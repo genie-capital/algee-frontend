@@ -117,36 +117,31 @@ const CategoryManagement: React.FC = () => {
       return;
     }
 
-    // Ensure weights are numbers, defaulting to 0 if empty or invalid
-    const creditLimitWeightValue = Number(formData.creditLimitWeight);
-    const interestRateWeightValue = Number(formData.interestRateWeight);
+    // Handle weight validation properly for zero values
+    const creditLimitWeightValue = formData.creditLimitWeight === '' ? NaN : Number(formData.creditLimitWeight);
+    const interestRateWeightValue = formData.interestRateWeight === '' ? NaN : Number(formData.interestRateWeight);
     
-    if (
-      isNaN(creditLimitWeightValue) || isNaN(interestRateWeightValue)
-    ) {
-      setError('Credit Limit Weight and Interest Rate Weight must be numbers.');
+    if (isNaN(creditLimitWeightValue) || isNaN(interestRateWeightValue)) {
+      setError('Credit Limit Weight and Interest Rate Weight must be valid numbers.');
       return;
     }
 
-    const creditLimitWeight = creditLimitWeightValue;
-    const interestRateWeight = interestRateWeightValue;
-
-    // Validate that weights are within range
+    // Validate that weights are within range (0 is explicitly allowed)
     if (
-      creditLimitWeight < 0 ||
-      creditLimitWeight > 100 ||
-      interestRateWeight < 0 ||
-      interestRateWeight > 100
+      creditLimitWeightValue < 0 ||
+      creditLimitWeightValue > 100 ||
+      interestRateWeightValue < 0 ||
+      interestRateWeightValue > 100
     ) {
-      setError('Weights must be between 0 and 100.');
+      setError('Weights must be between 0 and 100 (inclusive).');
       return;
     }
 
     const payload = {
       name: formData.name.trim(),
       description: formData.description.trim(),
-      creditLimitWeight,
-      interestRateWeight,
+      creditLimitWeight: creditLimitWeightValue,
+      interestRateWeight: interestRateWeightValue,
     };
 
     console.log('Submitting payload:', payload);
@@ -297,7 +292,7 @@ const CategoryManagement: React.FC = () => {
                       type="number"
                       value={formData.creditLimitWeight === '' ? '' : String(formData.creditLimitWeight)}
                       onChange={(e) => setFormData({ ...formData, creditLimitWeight: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                      inputProps={{ step: 1, min: 0, max: 100 }}
+                      inputProps={{ step: 0.01, min: 0, max: 100 }}
                     />
                     <TextField
                       fullWidth
@@ -305,7 +300,7 @@ const CategoryManagement: React.FC = () => {
                       type="number"
                       value={formData.interestRateWeight === '' ? '' : String(formData.interestRateWeight)}
                       onChange={(e) => setFormData({ ...formData, interestRateWeight: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                      inputProps={{ step: 1, min: 0, max: 100 }}
+                      inputProps={{ step: 0.01, min: 0, max: 100 }}
                     />
                   </Box>
                 </Box>
