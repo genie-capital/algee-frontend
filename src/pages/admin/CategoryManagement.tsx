@@ -144,7 +144,12 @@ const CategoryManagement: React.FC = () => {
       interestRateWeight: interestRateWeightValue,
     };
 
+    // Log payload and types for debugging
     console.log('Submitting payload:', payload);
+    console.log('Types:', {
+      creditLimitWeight: typeof payload.creditLimitWeight,
+      interestRateWeight: typeof payload.interestRateWeight,
+    });
 
     try {
       const url = editingCategory
