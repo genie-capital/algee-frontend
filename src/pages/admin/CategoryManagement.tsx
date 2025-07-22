@@ -67,6 +67,8 @@ const CategoryManagement: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         setCategories(data.data);
+        // Log fetched categories for debugging
+        console.log('Fetched categories:', data.data);
       } else {
         setError(data.message);
       }
