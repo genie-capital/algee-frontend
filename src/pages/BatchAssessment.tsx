@@ -104,8 +104,8 @@ const BatchAssessment = () => {
     }
   };
 
-  const handleViewResults = (batchId: number) => {
-    navigate(`/batch/${batchId}`);
+  const handleViewResults = (batchId: number | string) => {
+    navigate(`/results/batch/${batchId}`);
   };
 
   const handleDownloadTemplate = async () => {
@@ -291,7 +291,7 @@ const BatchAssessment = () => {
               {batchJobs.map((job) => (
                 <tr key={job.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#07002F]">
-                    {job.filename}
+                    {job.id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(job.createdAt).toLocaleString()}

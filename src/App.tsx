@@ -74,6 +74,11 @@ export function App() {
               <AssessmentResults />
             </ProtectedRoute>
           } />
+          <Route path="/results/batch/:batchId" element={
+            <ProtectedRoute>
+              <BatchAssessmentDetails />
+            </ProtectedRoute>
+          } />
           <Route path="/institution/:id/parameters" element={
             <ProtectedRoute>
               <InstitutionParameterDetail />

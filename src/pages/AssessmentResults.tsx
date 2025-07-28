@@ -69,21 +69,28 @@ const AssessmentResults = () => {
 
   // Update data fetching logic
   useEffect(() => {
+    // Build params for API
     const params: any = {
       page: filters.page,
       limit: filters.limit,
       sortBy: filters.sortBy,
       sortOrder: filters.sortOrder,
     };
-    // Search: if numeric, treat as batch ID in batch mode, else as client name/reference
     if (filters.search) {
-      if (viewMode === 'batch' && /^\d+$/.test(filters.search.trim())) {
-        params.uploadBatchId = Number(filters.search.trim());
+      if (viewMode === 'batch') {
+        // In batch view: if search is numeric, treat as batch ID; else, as client name/reference
+        if (/^\d+$/.test(filters.search.trim())) {
+          params.uploadBatchId = Number(filters.search.trim());
+        } else {
+          params.search = filters.search.trim();
+        }
       } else {
+        // In client view: always treat as client name/reference
         params.search = filters.search.trim();
       }
     }
-    // For client view, fetch all clients (no batch grouping)
+    // Only send relevant params for each mode
+    // (No need to send uploadBatchId in client view)
     fetchResults(params);
   }, [filters, fetchResults, viewMode]);
 
