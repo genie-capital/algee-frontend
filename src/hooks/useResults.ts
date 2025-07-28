@@ -1,5 +1,12 @@
 import { useState, useCallback } from 'react';
-import { Result, resultsService, BatchResultsResponse } from '../services/resultsService';
+import {
+  Result,
+  resultsService,
+  BatchResultsResponse,
+  ClientResultHistoryResponse,
+  ClientResultDetailedResponse,
+  CompareResultsResponse
+} from '../services/resultsService';
 
 interface ResultsResponse {
   data: {
@@ -35,10 +42,13 @@ export const useResults = (options: UseResultsOptions = {}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Result[]>([]);
-  const [pagination, setPagination] = useState<ResultsResponse['data']['pagination'] | null>(null);
-  const [summary, setSummary] = useState<ResultsResponse['data']['summary'] | null>(null);
-  const [filters, setFilters] = useState<ResultsResponse['data']['filters']>(null);
-  const [batchSummary, setBatchSummary] = useState<BatchResultsResponse['data']['batchSummary'] | null>(null);
+  const [pagination, setPagination] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
+  const [filters, setFilters] = useState<any>(null);
+  const [batchSummary, setBatchSummary] = useState<any>(null);
+  const [clientHistory, setClientHistory] = useState<ClientResultHistoryResponse['data'] | null>(null);
+  const [clientDetailed, setClientDetailed] = useState<ClientResultDetailedResponse['data'] | null>(null);
+  const [compareData, setCompareData] = useState<CompareResultsResponse['data'] | null>(null);
 
   const fetchResults = useCallback(async (params: any) => {
     try {
@@ -79,6 +89,46 @@ export const useResults = (options: UseResultsOptions = {}) => {
     }
   }, []);
 
+  const getClientResultHistory = useCallback(async (clientId: number, params: any) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await resultsService.getClientResultHistory(clientId, params);
+      if (response.success) {
+        setClientHistory(response.data);
+        return response.data;
+      } else {
+        setError(response.message || 'Failed to fetch client result history');
+        throw new Error(response.message);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching client result history');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getClientResultDetailed = useCallback(async (clientId: number, uploadBatchId?: number) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await resultsService.getClientResultDetailed(clientId, uploadBatchId);
+      if (response.success) {
+        setClientDetailed(response.data);
+        return response.data;
+      } else {
+        setError(response.message || 'Failed to fetch detailed client result');
+        throw new Error(response.message);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching detailed client result');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const getResultsByBatch = useCallback(async (uploadBatchId: number, params: any) => {
     try {
       setLoading(true);
@@ -95,6 +145,26 @@ export const useResults = (options: UseResultsOptions = {}) => {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while fetching batch results');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const compareResults = useCallback(async (params: any) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await resultsService.compareResults(params);
+      if (response.success) {
+        setCompareData(response.data);
+        return response.data;
+      } else {
+        setError(response.message || 'Failed to compare results');
+        throw new Error(response.message);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while comparing results');
       throw err;
     } finally {
       setLoading(false);
@@ -123,9 +193,15 @@ export const useResults = (options: UseResultsOptions = {}) => {
     summary,
     batchSummary,
     filters,
+    clientHistory,
+    clientDetailed,
+    compareData,
     fetchResults,
     getLatestClientResult,
+    getClientResultHistory,
+    getClientResultDetailed,
     getResultsByBatch,
+    compareResults,
     exportResults
   };
 }; 

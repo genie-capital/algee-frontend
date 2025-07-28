@@ -8,6 +8,7 @@ import { formatCurrency } from '../utils/formatters';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BatchSummary {
   id: number;
@@ -23,7 +24,23 @@ interface BatchSummary {
   };
 }
 
-type ViewMode = 'batches' | 'clients';
+type SortOrder = 'ASC' | 'DESC';
+type Filters = {
+  page: number;
+  limit: number;
+  sortBy: string;
+  sortOrder: SortOrder;
+  search: string;
+  clientId: string;
+  uploadBatchId: string;
+  minInterestRate: string;
+  maxInterestRate: string;
+  minCreditLimit: string;
+  maxCreditLimit: string;
+  dateFrom: string;
+  dateTo: string;
+  institutionId: number | undefined;
+};
 
 const AssessmentResults = () => {
   const navigate = useNavigate();
@@ -38,27 +55,40 @@ const AssessmentResults = () => {
     getLatestClientResult
   } = useResults();
 
-  const [viewMode, setViewMode] = useState<ViewMode>('batches');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  // Add new state for view mode (batch or client)
+  const [viewMode, setViewMode] = useState<'batch' | 'client'>('batch');
 
+  // Update filters: remove min/max fields, add only what's needed
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
     sortBy: 'createdAt',
-    sortOrder: 'DESC' as const,
-    search: '',
-    uploadBatchId: undefined as number | undefined
+    sortOrder: 'DESC',
+    search: '', // for client name, reference, or batch ID
   });
 
+  // Update data fetching logic
   useEffect(() => {
-    fetchResults(filters);
-  }, [filters, fetchResults]);
+    const params: any = {
+      page: filters.page,
+      limit: filters.limit,
+      sortBy: filters.sortBy,
+      sortOrder: filters.sortOrder,
+    };
+    // Search: if numeric, treat as batch ID in batch mode, else as client name/reference
+    if (filters.search) {
+      if (viewMode === 'batch' && /^\d+$/.test(filters.search.trim())) {
+        params.uploadBatchId = Number(filters.search.trim());
+      } else {
+        params.search = filters.search.trim();
+      }
+    }
+    // For client view, fetch all clients (no batch grouping)
+    fetchResults(params);
+  }, [filters, fetchResults, viewMode]);
 
   const handleViewDetails = (batchId: number) => {
-    setSelectedBatchId(batchId);
-    setViewMode('clients');
-    setFilters(prev => ({ ...prev, uploadBatchId: batchId }));
+    navigate(`/batch/${batchId}`);
   };
 
   const handleExport = async (batchId: number) => {
@@ -94,16 +124,13 @@ const AssessmentResults = () => {
   // Group results by batch
   const batchSummaries: BatchSummary[] = results.reduce((acc: BatchSummary[], result: Result) => {
     const existingBatch = acc.find(batch => batch.id === result.uploadBatchId);
-    
     if (existingBatch) {
       return acc;
     }
-
     const batchResults = results.filter(r => r.uploadBatchId === result.uploadBatchId);
     const avgCreditLimit = batchResults.reduce((sum, r) => sum + r.credit_limit, 0) / batchResults.length;
     const avgInterestRate = batchResults.reduce((sum, r) => sum + r.interest_rate, 0) / batchResults.length;
     const creditLimits = batchResults.map(r => r.credit_limit);
-
     acc.push({
       id: result.uploadBatchId,
       name: result.uploadBatch.name,
@@ -117,7 +144,6 @@ const AssessmentResults = () => {
         max: Math.max(...creditLimits)
       }
     });
-
     return acc;
   }, []);
 
@@ -152,23 +178,83 @@ const AssessmentResults = () => {
             View and manage credit scoring results
           </p>
         </div>
-        <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
-          {viewMode === 'clients' && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setViewMode('batches');
-                setSelectedBatchId(null);
-                setFilters(prev => ({ ...prev, uploadBatchId: undefined }));
-              }}
-            >
-              Back to Batches
-            </Button>
-          )}
+      </div>
+
+      {/* Filter controls */}
+      <div className="bg-white shadow rounded-lg p-4 mb-4 flex flex-wrap gap-4 items-end">
+        {/* Search field */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700" htmlFor="search-input">Search</label>
+          <input
+            id="search-input"
+            type="text"
+            className="form-input mt-1 block w-full"
+            placeholder="Client name, reference, or batch ID"
+            value={filters.search}
+            onChange={e => setFilters(f => ({ ...f, search: e.target.value, page: 1 }))}
+          />
+        </div>
+        {/* Batch/Client toggle dropdown */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700" htmlFor="viewmode-select">View</label>
+          <select
+            id="viewmode-select"
+            className="form-select mt-1 block w-full"
+            value={viewMode}
+            onChange={e => setViewMode(e.target.value as 'batch' | 'client')}
+            title="View Mode"
+          >
+            <option value="batch">Batch Uploads</option>
+            <option value="client">All Clients</option>
+          </select>
+        </div>
+        {/* Sort By dropdown */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700" htmlFor="sortby-select">Sort By</label>
+          <select
+            id="sortby-select"
+            className="form-select mt-1 block w-full"
+            value={filters.sortBy}
+            onChange={e => setFilters(f => ({ ...f, sortBy: e.target.value }))}
+            title="Sort By"
+          >
+            <option value="createdAt">Date Processed</option>
+            <option value="credit_limit">Credit Limit</option>
+            <option value="interest_rate">Interest Rate</option>
+          </select>
+        </div>
+        {/* Sort Order dropdown */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700" htmlFor="order-select">Order</label>
+          <select
+            id="order-select"
+            className="form-select mt-1 block w-full"
+            value={filters.sortOrder}
+            onChange={e => setFilters(f => ({ ...f, sortOrder: e.target.value as 'ASC' | 'DESC' }))}
+            title="Order"
+          >
+            <option value="DESC">Descending</option>
+            <option value="ASC">Ascending</option>
+          </select>
+        </div>
+        {/* Page Size dropdown */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700" htmlFor="pagesize-select">Page Size</label>
+          <select
+            id="pagesize-select"
+            className="form-select mt-1 block w-full"
+            value={filters.limit}
+            onChange={e => setFilters(f => ({ ...f, limit: Number(e.target.value), page: 1 }))}
+            title="Page Size"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
         </div>
       </div>
 
-      {summary && viewMode === 'batches' && (
+      {summary && (
         <div className="grid grid-cols-1 gap-6 mb-8">
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Overall Summary</h3>
@@ -200,27 +286,17 @@ const AssessmentResults = () => {
         </div>
       )}
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">
-              {viewMode === 'batches' ? 'Batch Assessment Results' : 'Client Assessment Results'}
-            </h3>
-            {viewMode === 'clients' && (
-              <div className="flex-1 max-w-xs ml-4">
-                <input
-                  type="text"
-                  placeholder="Search clients..."
-                  className="form-input w-full"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            )}
+      {/* Render either batch view or client view */}
+      {viewMode === 'batch' ? (
+        // Batch view: batch summary and table rendering
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                Batch Assessment Results
+              </h3>
+            </div>
           </div>
-        </div>
-
-        {viewMode === 'batches' ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -247,7 +323,7 @@ const AssessmentResults = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {batchSummaries.map((batch) => (
-                  <tr key={batch.id}>
+                  <tr key={batch.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleViewDetails(batch.id)}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-[#07002F]">{batch.name}</div>
                       <div className="text-sm text-gray-500">{batch.filename}</div>
@@ -271,14 +347,7 @@ const AssessmentResults = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleViewDetails(batch.id)}
-                        >
-                          View Details
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExport(batch.id)}
+                          onClick={e => { e.stopPropagation(); handleExport(batch.id); }}
                         >
                           Export
                         </Button>
@@ -289,118 +358,135 @@ const AssessmentResults = () => {
               </tbody>
             </table>
           </div>
-        ) : (
+          {/* Pagination for batch view */}
+          {pagination && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <Button
+                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                  disabled={pagination.page === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                  disabled={pagination.page === pagination.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing <span className="font-medium">{pagination.page}</span> to{' '}
+                    <span className="font-medium">{pagination.totalPages}</span> of{' '}
+                    <span className="font-medium">{pagination.total}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <Button
+                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                      disabled={pagination.page === 1}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                      disabled={pagination.page === pagination.totalPages}
+                    >
+                      Next
+                    </Button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        // All Clients view: flat table of all clients
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                All Clients
+              </h3>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Client
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Assessment Date
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Credit Limit
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Interest Rate
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Batch
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference Number</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credit Limit</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Interest Rate</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Processed</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch Name</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {results
-                  .filter(result => 
-                    searchQuery === '' ||
-                    result.client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    result.client.reference_number.toLowerCase().includes(searchQuery.toLowerCase())
-                  )
-                  .map((result) => (
-                    <tr key={result.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-[#07002F]">{result.client.name}</div>
-                        <div className="text-sm text-gray-500">{result.client.reference_number}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(result.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatCurrency(result.credit_limit)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {result.interest_rate.toFixed(2)}%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {result.uploadBatch.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewClientDetails(result.clientId)}
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                {results.map((client) => (
+                  <tr key={client.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">{client.client.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{client.client.reference_number}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{client.client.phoneNumber}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{client.credit_limit !== undefined ? client.credit_limit : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{client.interest_rate !== undefined ? client.interest_rate : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{client.createdAt ? formatDate(client.createdAt) : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{client.uploadBatch?.name || '-'}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-        )}
-
-        {pagination && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <Button
-                onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
-                disabled={pagination.page === 1}
-              >
-                Previous
-              </Button>
-              <Button
-                onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
-                disabled={pagination.page === pagination.totalPages}
-              >
-                Next
-              </Button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{pagination.page}</span> to{' '}
-                  <span className="font-medium">{pagination.totalPages}</span> of{' '}
-                  <span className="font-medium">{pagination.total}</span> results
-                </p>
+          {/* Pagination for client view */}
+          {pagination && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <Button
+                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                  disabled={pagination.page === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                  disabled={pagination.page === pagination.totalPages}
+                >
+                  Next
+                </Button>
               </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <Button
-                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
-                    disabled={pagination.page === 1}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
-                    disabled={pagination.page === pagination.totalPages}
-                  >
-                    Next
-                  </Button>
-                </nav>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing <span className="font-medium">{pagination.page}</span> to{' '}
+                    <span className="font-medium">{pagination.totalPages}</span> of{' '}
+                    <span className="font-medium">{pagination.total}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <Button
+                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                      disabled={pagination.page === 1}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                      disabled={pagination.page === pagination.totalPages}
+                    >
+                      Next
+                    </Button>
+                  </nav>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </>
   );
 };
