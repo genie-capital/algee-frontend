@@ -104,8 +104,9 @@ const BatchAssessment = () => {
     }
   };
 
+  // FIXED: Change navigation path to match BatchAssessmentDetails route expectation
   const handleViewResults = (batchId: number | string) => {
-    navigate(`/results/batch/${batchId}`);
+    navigate(`/batch/${batchId}`);
   };
 
   const handleDownloadTemplate = async () => {
