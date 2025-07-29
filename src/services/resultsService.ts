@@ -132,14 +132,14 @@ export interface CompareResultsResponse {
 }
 
 export const resultsService = {
-  // Get all results with advanced filtering
+  // Get all results with advanced filtering (client-centric, never by batch)
   getAllResults: async (params: {
     page?: number;
     limit?: number;
     sortBy?: string;
     sortOrder?: 'ASC' | 'DESC';
     search?: string;
-    uploadBatchId?: number;
+    // uploadBatchId?: number; // Removed, batch filtering is now frontend only
     minCreditLimit?: number;
     maxCreditLimit?: number;
     minInterestRate?: number;

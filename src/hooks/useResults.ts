@@ -54,6 +54,10 @@ export const useResults = (options: UseResultsOptions = {}) => {
     try {
       setLoading(true);
       setError(null);
+      // Do not allow uploadBatchId in params; always fetch by client
+      if ('uploadBatchId' in params) {
+        delete params.uploadBatchId;
+      }
       const response = await resultsService.getAllResults(params);
       if (response.success) {
         setResults(response.data.results);
