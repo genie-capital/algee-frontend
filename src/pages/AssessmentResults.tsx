@@ -55,29 +55,15 @@ const AssessmentResults = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Build params for API with better validation
-        const params: any = {
-          page: filters.page,
-          limit: filters.limit,
-          sortBy: filters.sortBy,
-          sortOrder: filters.sortOrder,
-        };
-
-        // Handle search parameter more safely
-        if (filters.search && filters.search.trim()) {
-          // Always treat search as client name/reference (never batch ID for API)
-          params.search = filters.search.trim();
-        }
-
-        console.log('API Params being sent:', params); // Debug log
-        await fetchResults(params);
+        // Always fetch all results, no params
+        await fetchResults({});
       } catch (err) {
         console.error('Error fetching results:', err);
       }
     };
 
     fetchData();
-  }, [filters, fetchResults, viewMode]);
+  }, [fetchResults]);
 
   const handleViewDetails = (batchId: number) => {
     navigate(`/results/batch/${batchId}`);

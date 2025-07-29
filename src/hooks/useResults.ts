@@ -50,15 +50,12 @@ export const useResults = (options: UseResultsOptions = {}) => {
   const [clientDetailed, setClientDetailed] = useState<ClientResultDetailedResponse['data'] | null>(null);
   const [compareData, setCompareData] = useState<CompareResultsResponse['data'] | null>(null);
 
-  const fetchResults = useCallback(async (params: any) => {
+  const fetchResults = useCallback(async (_params: any) => {
     try {
       setLoading(true);
       setError(null);
-      // Do not allow uploadBatchId in params; always fetch by client
-      if ('uploadBatchId' in params) {
-        delete params.uploadBatchId;
-      }
-      const response = await resultsService.getAllResults(params);
+      // Always fetch all results, ignore params
+      const response = await resultsService.getAllResults({});
       if (response.success) {
         setResults(response.data.results);
         setPagination(response.data.pagination);
