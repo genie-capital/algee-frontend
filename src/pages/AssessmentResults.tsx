@@ -25,22 +25,6 @@ interface BatchSummary {
 }
 
 type SortOrder = 'ASC' | 'DESC';
-type Filters = {
-  page: number;
-  limit: number;
-  sortBy: string;
-  sortOrder: SortOrder;
-  search: string;
-  clientId: string;
-  uploadBatchId: string;
-  minInterestRate: string;
-  maxInterestRate: string;
-  minCreditLimit: string;
-  maxCreditLimit: string;
-  dateFrom: string;
-  dateTo: string;
-  institutionId: number | undefined;
-};
 
 const AssessmentResults = () => {
   const navigate = useNavigate();
@@ -58,44 +42,54 @@ const AssessmentResults = () => {
   // Add new state for view mode (batch or client)
   const [viewMode, setViewMode] = useState<'batch' | 'client'>('batch');
 
-  // Update filters: remove min/max fields, add only what's needed
+  // Simplified filters state
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
     sortBy: 'createdAt',
-    sortOrder: 'DESC',
+    sortOrder: 'DESC' as SortOrder,
     search: '', // for client name, reference, or batch ID
   });
 
-  // Update data fetching logic
+  // Add error handling and API call debugging
   useEffect(() => {
-    // Build params for API
-    const params: any = {
-      page: filters.page,
-      limit: filters.limit,
-      sortBy: filters.sortBy,
-      sortOrder: filters.sortOrder,
-    };
-    if (filters.search) {
-      if (viewMode === 'batch') {
-        // In batch view: if search is numeric, treat as batch ID; else, as client name/reference
-        if (/^\d+$/.test(filters.search.trim())) {
-          params.uploadBatchId = Number(filters.search.trim());
-        } else {
-          params.search = filters.search.trim();
+    const fetchData = async () => {
+      try {
+        // Build params for API with better validation
+        const params: any = {
+          page: filters.page,
+          limit: filters.limit,
+          sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder,
+        };
+
+        // Handle search parameter more safely
+        if (filters.search && filters.search.trim()) {
+          if (viewMode === 'batch') {
+            // In batch view: if search is numeric, treat as batch ID; else, as client name/reference
+            if (/^\d+$/.test(filters.search.trim())) {
+              params.uploadBatchId = Number(filters.search.trim());
+            } else {
+              params.search = filters.search.trim();
+            }
+          } else {
+            // In client view: always treat as client name/reference
+            params.search = filters.search.trim();
+          }
         }
-      } else {
-        // In client view: always treat as client name/reference
-        params.search = filters.search.trim();
+
+        console.log('API Params being sent:', params); // Debug log
+        await fetchResults(params);
+      } catch (err) {
+        console.error('Error fetching results:', err);
       }
-    }
-    // Only send relevant params for each mode
-    // (No need to send uploadBatchId in client view)
-    fetchResults(params);
+    };
+
+    fetchData();
   }, [filters, fetchResults, viewMode]);
 
   const handleViewDetails = (batchId: number) => {
-    navigate(`/batch/${batchId}`);
+    navigate(`/results/batch/${batchId}`);
   };
 
   const handleExport = async (batchId: number) => {
@@ -106,6 +100,8 @@ const AssessmentResults = () => {
       });
     } catch (error) {
       console.error('Error exporting results:', error);
+      // Add user-friendly error handling here
+      alert('Failed to export results. Please try again.');
     }
   };
 
@@ -115,6 +111,7 @@ const AssessmentResults = () => {
       navigate(`/client/${clientId}`, { state: { result } });
     } catch (error) {
       console.error('Error fetching client details:', error);
+      alert('Failed to fetch client details. Please try again.');
     }
   };
 
@@ -125,54 +122,81 @@ const AssessmentResults = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
-  // Group results by batch
-  const batchSummaries: BatchSummary[] = results.reduce((acc: BatchSummary[], result: Result) => {
-    const existingBatch = acc.find(batch => batch.id === result.uploadBatchId);
-    if (existingBatch) {
-      return acc;
-    }
-    const batchResults = results.filter(r => r.uploadBatchId === result.uploadBatchId);
-    const avgCreditLimit = batchResults.reduce((sum, r) => sum + r.credit_limit, 0) / batchResults.length;
-    const avgInterestRate = batchResults.reduce((sum, r) => sum + r.interest_rate, 0) / batchResults.length;
-    const creditLimits = batchResults.map(r => r.credit_limit);
-    acc.push({
-      id: result.uploadBatchId,
-      name: result.uploadBatch.name,
-      filename: result.uploadBatch.filename,
-      createdAt: result.createdAt,
-      totalResults: batchResults.length,
-      avgCreditLimit,
-      avgInterestRate,
-      creditLimitRange: {
-        min: Math.min(...creditLimits),
-        max: Math.max(...creditLimits)
+  // Group results by batch with better error handling
+  const batchSummaries: BatchSummary[] = React.useMemo(() => {
+    if (!results || results.length === 0) return [];
+    
+    return results.reduce((acc: BatchSummary[], result: Result) => {
+      if (!result.uploadBatchId) return acc;
+      
+      const existingBatch = acc.find(batch => batch.id === result.uploadBatchId);
+      if (existingBatch) {
+        return acc;
       }
-    });
-    return acc;
-  }, []);
+      
+      const batchResults = results.filter(r => r.uploadBatchId === result.uploadBatchId);
+      if (batchResults.length === 0) return acc;
+      
+      const avgCreditLimit = batchResults.reduce((sum, r) => sum + (r.credit_limit || 0), 0) / batchResults.length;
+      const avgInterestRate = batchResults.reduce((sum, r) => sum + (r.interest_rate || 0), 0) / batchResults.length;
+      const creditLimits = batchResults.map(r => r.credit_limit || 0).filter(limit => limit > 0);
+      
+      acc.push({
+        id: result.uploadBatchId,
+        name: result.uploadBatch?.name || 'Unknown Batch',
+        filename: result.uploadBatch?.filename || 'Unknown File',
+        createdAt: result.createdAt,
+        totalResults: batchResults.length,
+        avgCreditLimit,
+        avgInterestRate,
+        creditLimitRange: {
+          min: creditLimits.length > 0 ? Math.min(...creditLimits) : 0,
+          max: creditLimits.length > 0 ? Math.max(...creditLimits) : 0
+        }
+      });
+      return acc;
+    }, []);
+  }, [results]);
 
+  // Better loading state
   if (loading) {
     return (
-      <>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Loading results...</div>
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="text-gray-500 mt-4">Loading results...</div>
         </div>
-      </>
+      </div>
     );
   }
 
+  // Better error state with retry option
   if (error) {
     return (
-      <>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-red-500">Error: {error}</div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">Error: {error}</div>
+          <Button 
+            onClick={() => window.location.reload()} 
+            variant="outline"
+          >
+            Retry
+          </Button>
         </div>
-      </>
+      </div>
     );
   }
+
+  // Handle empty results
+  const hasResults = results && results.length > 0;
+  const hasBatchSummaries = batchSummaries.length > 0;
 
   return (
     <>
@@ -196,7 +220,7 @@ const AssessmentResults = () => {
             id="search-input"
             type="text"
             className="form-input mt-1 block w-full"
-            placeholder="Client name, reference, or batch ID"
+            placeholder={viewMode === 'batch' ? "Client name, reference, or batch ID" : "Client name or reference"}
             value={filters.search}
             onChange={e => setFilters(f => ({ ...f, search: e.target.value, page: 1 }))}
           />
@@ -208,7 +232,10 @@ const AssessmentResults = () => {
             id="viewmode-select"
             className="form-select mt-1 block w-full"
             value={viewMode}
-            onChange={e => setViewMode(e.target.value as 'batch' | 'client')}
+            onChange={e => {
+              setViewMode(e.target.value as 'batch' | 'client');
+              setFilters(f => ({ ...f, search: '', page: 1 })); // Clear search when switching views
+            }}
             title="View Mode"
           >
             <option value="batch">Batch Uploads</option>
@@ -222,7 +249,7 @@ const AssessmentResults = () => {
             id="sortby-select"
             className="form-select mt-1 block w-full"
             value={filters.sortBy}
-            onChange={e => setFilters(f => ({ ...f, sortBy: e.target.value }))}
+            onChange={e => setFilters(f => ({ ...f, sortBy: e.target.value, page: 1 }))}
             title="Sort By"
           >
             <option value="createdAt">Date Processed</option>
@@ -237,7 +264,7 @@ const AssessmentResults = () => {
             id="order-select"
             className="form-select mt-1 block w-full"
             value={filters.sortOrder}
-            onChange={e => setFilters(f => ({ ...f, sortOrder: e.target.value as 'ASC' | 'DESC' }))}
+            onChange={e => setFilters(f => ({ ...f, sortOrder: e.target.value as 'ASC' | 'DESC', page: 1 }))}
             title="Order"
           >
             <option value="DESC">Descending</option>
@@ -261,6 +288,7 @@ const AssessmentResults = () => {
         </div>
       </div>
 
+      {/* Summary section - only show if we have data */}
       {summary && (
         <div className="grid grid-cols-1 gap-6 mb-8">
           <div className="bg-white shadow rounded-lg p-6">
@@ -268,24 +296,24 @@ const AssessmentResults = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Total Results</p>
-                <p className="text-2xl font-semibold text-gray-900">{summary.totalResults}</p>
+                <p className="text-2xl font-semibold text-gray-900">{summary.totalResults || 0}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Average Credit Limit</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {formatCurrency(summary.avgCreditLimit)}
+                  {formatCurrency(summary.avgCreditLimit || 0)}
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Average Interest Rate</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {summary.avgInterestRate.toFixed(2)}%
+                  {(summary.avgInterestRate || 0).toFixed(2)}%
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Credit Limit Range</p>
                 <p className="text-sm font-medium">
-                  {formatCurrency(summary.creditLimitRange.min)} - {formatCurrency(summary.creditLimitRange.max)}
+                  {formatCurrency(summary.creditLimitRange?.min || 0)} - {formatCurrency(summary.creditLimitRange?.max || 0)}
                 </p>
               </div>
             </div>
@@ -305,68 +333,82 @@ const AssessmentResults = () => {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Batch Name
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Upload Date
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Clients
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Avg Credit Limit
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Avg Interest Rate
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {batchSummaries.map((batch) => (
-                  <tr key={batch.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleViewDetails(batch.id)}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-[#07002F]">{batch.name}</div>
-                      <div className="text-sm text-gray-500">{batch.filename}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(batch.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {batch.totalResults}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRiskLevelColor(batch.avgCreditLimit)}`}>
-                        {formatCurrency(batch.avgCreditLimit)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {batch.avgInterestRate.toFixed(2)}%
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={e => { e.stopPropagation(); handleExport(batch.id); }}
-                        >
-                          Export
-                        </Button>
-                      </div>
-                    </td>
+            {hasBatchSummaries ? (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Batch Name
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Upload Date
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total Clients
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Avg Credit Limit
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Avg Interest Rate
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {batchSummaries.map((batch) => (
+                    <tr key={batch.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleViewDetails(batch.id)}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-[#07002F]">{batch.name}</div>
+                        <div className="text-sm text-gray-500">{batch.filename}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(batch.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {batch.totalResults}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRiskLevelColor(batch.avgCreditLimit)}`}>
+                          {formatCurrency(batch.avgCreditLimit)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {batch.avgInterestRate.toFixed(2)}%
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={e => { e.stopPropagation(); handleExport(batch.id); }}
+                          >
+                            Export
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-gray-500">No batch results found</div>
+                {filters.search && (
+                  <button 
+                    className="mt-2 text-blue-600 hover:text-blue-800"
+                    onClick={() => setFilters(f => ({ ...f, search: '', page: 1 }))}
+                  >
+                    Clear search
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           {/* Pagination for batch view */}
-          {pagination && (
+          {pagination && hasBatchSummaries && (
             <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
               <div className="flex-1 flex justify-between sm:hidden">
                 <Button
@@ -385,8 +427,8 @@ const AssessmentResults = () => {
               <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm text-gray-700">
-                    Showing <span className="font-medium">{pagination.page}</span> to{' '}
-                    <span className="font-medium">{pagination.totalPages}</span> of{' '}
+                    Showing <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
                     <span className="font-medium">{pagination.total}</span> results
                   </p>
                 </div>
@@ -421,35 +463,53 @@ const AssessmentResults = () => {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference Number</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credit Limit</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Interest Rate</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Processed</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch Name</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {results.map((client) => (
-                  <tr key={client.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{client.client.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{client.client.reference_number}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{client.client.phoneNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{client.credit_limit !== undefined ? client.credit_limit : '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{client.interest_rate !== undefined ? client.interest_rate : '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{client.createdAt ? formatDate(client.createdAt) : '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{client.uploadBatch?.name || '-'}</td>
+            {hasResults ? (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference Number</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credit Limit</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Interest Rate</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Processed</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch Name</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {results.map((client) => (
+                    <tr key={client.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">{client.client?.name || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{client.client?.reference_number || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{client.client?.phoneNumber || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {client.credit_limit !== undefined ? formatCurrency(client.credit_limit) : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {client.interest_rate !== undefined ? `${client.interest_rate.toFixed(2)}%` : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">{client.createdAt ? formatDate(client.createdAt) : 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{client.uploadBatch?.name || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-gray-500">No client results found</div>
+                {filters.search && (
+                  <button 
+                    className="mt-2 text-blue-600 hover:text-blue-800"
+                    onClick={() => setFilters(f => ({ ...f, search: '', page: 1 }))}
+                  >
+                    Clear search
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           {/* Pagination for client view */}
-          {pagination && (
+          {pagination && hasResults && (
             <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
               <div className="flex-1 flex justify-between sm:hidden">
                 <Button
@@ -468,8 +528,8 @@ const AssessmentResults = () => {
               <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm text-gray-700">
-                    Showing <span className="font-medium">{pagination.page}</span> to{' '}
-                    <span className="font-medium">{pagination.totalPages}</span> of{' '}
+                    Showing <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
                     <span className="font-medium">{pagination.total}</span> results
                   </p>
                 </div>
