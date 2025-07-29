@@ -65,17 +65,8 @@ const AssessmentResults = () => {
 
         // Handle search parameter more safely
         if (filters.search && filters.search.trim()) {
-          if (viewMode === 'batch') {
-            // In batch view: if search is numeric, treat as batch ID; else, as client name/reference
-            if (/^\d+$/.test(filters.search.trim())) {
-              params.uploadBatchId = Number(filters.search.trim());
-            } else {
-              params.search = filters.search.trim();
-            }
-          } else {
-            // In client view: always treat as client name/reference
-            params.search = filters.search.trim();
-          }
+          // Always treat search as client name/reference (never batch ID for API)
+          params.search = filters.search.trim();
         }
 
         console.log('API Params being sent:', params); // Debug log
@@ -132,22 +123,29 @@ const AssessmentResults = () => {
   // Group results by batch with better error handling
   const batchSummaries: BatchSummary[] = React.useMemo(() => {
     if (!results || results.length === 0) return [];
-    
-    return results.reduce((acc: BatchSummary[], result: Result) => {
+
+    // If in batch view and search is a numeric batch ID, filter results to only that batch
+    let filteredResults = results;
+    if (viewMode === 'batch' && filters.search && /^\d+$/.test(filters.search.trim())) {
+      const batchId = Number(filters.search.trim());
+      filteredResults = results.filter(r => r.uploadBatchId === batchId);
+    }
+
+    return filteredResults.reduce((acc: BatchSummary[], result: Result) => {
       if (!result.uploadBatchId) return acc;
-      
+
       const existingBatch = acc.find(batch => batch.id === result.uploadBatchId);
       if (existingBatch) {
         return acc;
       }
-      
-      const batchResults = results.filter(r => r.uploadBatchId === result.uploadBatchId);
+
+      const batchResults = filteredResults.filter(r => r.uploadBatchId === result.uploadBatchId);
       if (batchResults.length === 0) return acc;
-      
+
       const avgCreditLimit = batchResults.reduce((sum, r) => sum + (r.credit_limit || 0), 0) / batchResults.length;
       const avgInterestRate = batchResults.reduce((sum, r) => sum + (r.interest_rate || 0), 0) / batchResults.length;
       const creditLimits = batchResults.map(r => r.credit_limit || 0).filter(limit => limit > 0);
-      
+
       acc.push({
         id: result.uploadBatchId,
         name: result.uploadBatch?.name || 'Unknown Batch',
@@ -163,7 +161,7 @@ const AssessmentResults = () => {
       });
       return acc;
     }, []);
-  }, [results]);
+  }, [results, filters.search, viewMode]);
 
   // Better loading state
   if (loading) {
