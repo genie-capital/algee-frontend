@@ -148,13 +148,13 @@ export const resultsService = {
     dateTo?: string;
     clientId?: number;
   }): Promise<ResultsResponse> => {
-    const response = await api.get('/results', { params });
+    const response = await api.get('/result', { params });
     return response.data;
   },
 
   // Get latest client result
   getLatestClientResult: async (clientId: number, uploadBatchId?: number) => {
-    const response = await api.get(`/results/client/${clientId}/latest`, {
+    const response = await api.get(`/result/client/${clientId}/latest`, {
       params: uploadBatchId ? { uploadBatchId } : undefined
     });
     return response.data;
@@ -168,13 +168,13 @@ export const resultsService = {
     sortOrder?: 'ASC' | 'DESC';
     uploadBatchId?: number;
   }): Promise<ClientResultHistoryResponse> => {
-    const response = await api.get(`/results/client/${clientId}/history`, { params });
+    const response = await api.get(`/result/client/${clientId}/history`, { params });
     return response.data;
   },
 
   // Get detailed client result
   getClientResultDetailed: async (clientId: number, uploadBatchId?: number): Promise<ClientResultDetailedResponse> => {
-    const response = await api.get(`/results/client/${clientId}/detailed`, {
+    const response = await api.get(`/result/client/${clientId}/detailed`, {
       params: uploadBatchId ? { uploadBatchId } : undefined
     });
     return response.data;
@@ -188,7 +188,7 @@ export const resultsService = {
     sortOrder?: 'ASC' | 'DESC';
     search?: string;
   }): Promise<BatchResultsResponse> => {
-    const response = await api.get(`/results/batch/${uploadBatchId}`, {
+    const response = await api.get(`/result/batch/${uploadBatchId}`, {
       params
     });
     return response.data;
@@ -204,7 +204,7 @@ export const resultsService = {
     dateTo2?: string;
     clientIds?: string;
   }): Promise<CompareResultsResponse> => {
-    const response = await api.get('/results/compare', { params });
+    const response = await api.get('/result/compare', { params });
     return response.data;
   },
 
@@ -216,7 +216,7 @@ export const resultsService = {
     dateTo?: string;
     format?: 'csv' | 'json';
   }) => {
-    const response = await api.get('/results/export', {
+    const response = await api.get('/result/export', {
       params,
       responseType: 'blob'
     });

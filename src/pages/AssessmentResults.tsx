@@ -66,7 +66,7 @@ const AssessmentResults = () => {
   }, [fetchResults]);
 
   const handleViewDetails = (batchId: number) => {
-    navigate(`/results/batch/${batchId}`);
+    navigate(`/result/batch/${batchId}`);
   };
 
   const handleExport = async (batchId: number) => {
