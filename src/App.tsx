@@ -58,7 +58,7 @@ export function App() {
               <ClientResultDetails />
             </ProtectedRoute>
           } />
-          <Route path="/results/client/:clientId/detailed" element={
+          <Route path="/result/client/:clientId/detailed" element={
             <ProtectedRoute>
               <ClientResultDetails />
             </ProtectedRoute>
@@ -69,12 +69,12 @@ export function App() {
               <BatchAssessment />
             </ProtectedRoute>
           } />
-          <Route path="/results" element={
+          <Route path="/result" element={
             <ProtectedRoute>
               <AssessmentResults />
             </ProtectedRoute>
           } />
-          <Route path="/results/batch/:batchId" element={
+          <Route path="/result/batch/:batchId" element={
             <ProtectedRoute>
               <BatchAssessmentDetails />
             </ProtectedRoute>

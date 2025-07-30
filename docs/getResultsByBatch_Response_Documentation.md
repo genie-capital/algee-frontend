@@ -4,7 +4,7 @@
 
 The `getResultsByBatch()` method retrieves paginated results for a specific upload batch with optional search functionality. This endpoint supports role-based access control with different data visibility for administrators and institutions.
 
-**Endpoint:** `GET /api/results/batch/:uploadBatchId`  
+**Endpoint:** `GET /api/result/batch/:uploadBatchId`  
 **Controller Method:** `ResultsController.getResultsByBatch()`  
 **Authentication:** Required (JWT Bearer Token)  
 **Access Control:** Role-based (admin/institution)
@@ -408,8 +408,8 @@ AND UploadBatch.institutionId = :userId
 
 ## Related Endpoints
 
-- `GET /api/results/client/:clientId/latest` - Get latest result for specific client
-- `GET /api/results/client/:clientId/history` - Get client result history
-- `GET /api/results` - Get all results with filtering
-- `GET /api/results/compare` - Compare results between batches
-- `GET /api/results/export` - Export results to CSV 
+- `GET /api/result/client/:clientId/latest` - Get latest result for specific client
+- `GET /api/result/client/:clientId/history` - Get client result history
+- `GET /api/result` - Get all results with filtering
+- `GET /api/result/compare` - Compare results between batches
+- `GET /api/result/export` - Export results to CSV 

@@ -4,7 +4,7 @@
 
 The `getAllResults()` method is a comprehensive endpoint that retrieves paginated credit scoring results with advanced filtering, search capabilities, and role-based access control. This document provides detailed information about all possible response structures.
 
-**Endpoint:** `GET /api/results`  
+**Endpoint:** `GET /api/result`  
 **Controller:** `ResultsController.getAllResults()`  
 **Authentication:** Required (JWT Bearer Token)  
 **Authorization:** Role-based access control (Admin/Institution)
@@ -499,21 +499,21 @@ Available sorting fields:
 
 ### Basic Request
 ```bash
-curl -X GET "http://localhost:3000/api/results" \
+curl -X GET "http://localhost:3000/api/result" \
   -H "Authorization: Bearer <your-jwt-token>" \
   -H "Content-Type: application/json"
 ```
 
 ### Advanced Filtering
 ```bash
-curl -X GET "http://localhost:3000/api/results?page=1&limit=10&search=John&minCreditLimit=500000&maxCreditLimit=1000000&sortBy=credit_limit&sortOrder=DESC" \
+curl -X GET "http://localhost:3000/api/result?page=1&limit=10&search=John&minCreditLimit=500000&maxCreditLimit=1000000&sortBy=credit_limit&sortOrder=DESC" \
   -H "Authorization: Bearer <your-jwt-token>" \
   -H "Content-Type: application/json"
 ```
 
 ### Date Range Filtering
 ```bash
-curl -X GET "http://localhost:3000/api/results?dateFrom=2024-01-01&dateTo=2024-12-31&uploadBatchId=47" \
+curl -X GET "http://localhost:3000/api/result?dateFrom=2024-01-01&dateTo=2024-12-31&uploadBatchId=47" \
   -H "Authorization: Bearer <your-jwt-token>" \
   -H "Content-Type: application/json"
 ```

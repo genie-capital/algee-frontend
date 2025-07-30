@@ -3,7 +3,7 @@
 ## Overview
 This document provides comprehensive documentation for the `getLatestClientResult()` method in the `ResultsController` class, including all possible response structures, data models, and role-based filtering.
 
-**Endpoint:** `GET /api/results/client/:clientId/latest`  
+**Endpoint:** `GET /api/result/client/:clientId/latest`  
 **Method:** `ResultsController.getLatestClientResult()`  
 **Access:** Admin and Institution users  
 **Authentication:** Required (JWT Token)
@@ -384,14 +384,14 @@ All errors follow the standard API response format:
 
 #### Get Latest Result (Admin)
 ```bash
-curl -X GET "http://localhost:3000/api/results/client/123/latest" \
+curl -X GET "http://localhost:3000/api/result/client/123/latest" \
   -H "Authorization: Bearer <admin-jwt-token>" \
   -H "Content-Type: application/json"
 ```
 
 #### Get Latest Result with Batch Filter (Institution)
 ```bash
-curl -X GET "http://localhost:3000/api/results/client/123/latest?uploadBatchId=47" \
+curl -X GET "http://localhost:3000/api/result/client/123/latest?uploadBatchId=47" \
   -H "Authorization: Bearer <institution-jwt-token>" \
   -H "Content-Type: application/json"
 ```
@@ -401,7 +401,7 @@ curl -X GET "http://localhost:3000/api/results/client/123/latest?uploadBatchId=4
 #### Using Fetch API
 ```javascript
 async function getLatestClientResult(clientId, uploadBatchId = null) {
-  const url = new URL(`/api/results/client/${clientId}/latest`, 'http://localhost:3000');
+  const url = new URL(`/api/result/client/${clientId}/latest`, 'http://localhost:3000');
   if (uploadBatchId) {
     url.searchParams.append('uploadBatchId', uploadBatchId);
   }
@@ -450,7 +450,7 @@ const ClientResultDisplay = ({ clientId, uploadBatchId, userRole }) => {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/results/client/${clientId}/latest${uploadBatchId ? `?uploadBatchId=${uploadBatchId}` : ''}`,
+        `/api/result/client/${clientId}/latest${uploadBatchId ? `?uploadBatchId=${uploadBatchId}` : ''}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
@@ -632,10 +632,10 @@ describe('ResultsController.getLatestClientResult', () => {
 ### Integration Test Examples
 
 ```javascript
-describe('GET /api/results/client/:clientId/latest', () => {
+describe('GET /api/result/client/:clientId/latest', () => {
   it('should return latest client result for valid client', async () => {
     const response = await request(app)
-      .get('/api/results/client/123/latest')
+      .get('/api/result/client/123/latest')
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
@@ -660,7 +660,7 @@ describe('GET /api/results/client/:clientId/latest', () => {
 
   it('should filter results by upload batch', async () => {
     const response = await request(app)
-      .get('/api/results/client/123/latest?uploadBatchId=47')
+      .get('/api/result/client/123/latest?uploadBatchId=47')
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
