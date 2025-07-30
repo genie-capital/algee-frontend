@@ -106,7 +106,8 @@ const BatchAssessment = () => {
 
   // FIXED: Change navigation path to match BatchAssessmentDetails route expectation
   const handleViewResults = (batchId: number | string) => {
-    navigate(`api/result/batch/${batchId}`);
+    console.log('Navigating to batch results for batchId:', batchId);
+    navigate(`/result/batch/${batchId}`);
   };
 
   const handleDownloadTemplate = async () => {
