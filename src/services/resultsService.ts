@@ -149,8 +149,8 @@ export const resultsService = {
     clientId?: number;
   }): Promise<ResultsResponse> => {
     console.log('resultsService.getAllResults called with params:', params);
-    console.log('Making API call to: /api/result');
-    const response = await api.get('/api/result', { params });
+    console.log('Making API call to: /result');
+    const response = await api.get('/result', { params });
     console.log('API response in resultsService:', response);
     return response.data;
   },
