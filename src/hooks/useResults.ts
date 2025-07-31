@@ -54,17 +54,26 @@ export const useResults = (options: UseResultsOptions = {}) => {
     try {
       setLoading(true);
       setError(null);
+      console.log('Starting fetchResults call...');
       // Always fetch all results, ignore params
       const response = await resultsService.getAllResults({});
+      console.log('API response received:', response);
       if (response.success) {
         setResults(response.data.results);
         setPagination(response.data.pagination);
         setSummary(response.data.summary);
         setFilters(response.data.filters);
       } else {
+        console.error('API returned success: false with message:', response.message);
         setError(response.message || 'Failed to fetch results');
       }
     } catch (err) {
+      console.error('Error in fetchResults:', err);
+      console.error('Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        response: (err as any)?.response?.data
+      });
       setError(err instanceof Error ? err.message : 'An error occurred while fetching results');
     } finally {
       setLoading(false);
