@@ -48,7 +48,7 @@ const Sidebar = () => {
     },
     {
       name: 'Results',
-      href: '/results',
+      href: '/result',
       icon: BarChartIcon
     }
   ];
