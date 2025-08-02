@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import Layout from '../components/Layout';
@@ -35,6 +35,7 @@ const AssessmentResults = () => {
     pagination,
     summary,
     fetchResults,
+    debouncedSearch,
     exportResults,
     getLatestClientResult
   } = useResults();
@@ -42,28 +43,94 @@ const AssessmentResults = () => {
   // Add new state for view mode (batch or client)
   const [viewMode, setViewMode] = useState<'batch' | 'client'>('batch');
 
-  // Simplified filters state
+  // Enhanced filters state with all backend parameters
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
     sortBy: 'createdAt',
     sortOrder: 'DESC' as SortOrder,
     search: '', // for client name, reference, or batch ID
+    minCreditLimit: undefined as number | undefined,
+    maxCreditLimit: undefined as number | undefined,
+    minInterestRate: undefined as number | undefined,
+    maxInterestRate: undefined as number | undefined,
+    dateFrom: undefined as string | undefined,
+    dateTo: undefined as string | undefined,
+    clientId: undefined as number | undefined,
   });
 
-  // Add error handling and API call debugging
+  // Add loading state for filter changes
+  const [filterLoading, setFilterLoading] = useState(false);
+
+  // Initial data fetch
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Always fetch all results, no params
-        await fetchResults({});
+        await fetchResults(filters);
       } catch (err) {
         console.error('Error fetching results:', err);
+        // Add more specific error handling for 500 errors
+        if ((err as any)?.response?.status === 500) {
+          console.error('Server error - this might be a backend issue. Please check server logs.');
+        }
       }
     };
 
     fetchData();
+  }, []); // Only run on mount
+
+  // Handle filter changes - trigger API calls
+  const handleFilterChange = useCallback(async (newFilters: typeof filters) => {
+    setFilterLoading(true);
+    try {
+      await fetchResults(newFilters);
+    } catch (err) {
+      console.error('Error updating filters:', err);
+    } finally {
+      setFilterLoading(false);
+    }
   }, [fetchResults]);
+
+  // Handle search with debouncing
+  const handleSearchChange = useCallback((searchTerm: string) => {
+    const newFilters = { ...filters, search: searchTerm, page: 1 };
+    setFilters(newFilters);
+    debouncedSearch(searchTerm, newFilters);
+  }, [filters, debouncedSearch]);
+
+  // Handle pagination
+  const handlePageChange = useCallback((newPage: number) => {
+    const newFilters = { ...filters, page: newPage };
+    setFilters(newFilters);
+    handleFilterChange(newFilters);
+  }, [filters, handleFilterChange]);
+
+  // Handle sort changes
+  const handleSortChange = useCallback((sortBy: string, sortOrder: SortOrder) => {
+    const newFilters = { ...filters, sortBy, sortOrder, page: 1 };
+    setFilters(newFilters);
+    handleFilterChange(newFilters);
+  }, [filters, handleFilterChange]);
+
+  // Handle view mode change
+  const handleViewModeChange = useCallback((newViewMode: 'batch' | 'client') => {
+    setViewMode(newViewMode);
+    // Reset filters when switching views
+    const resetFilters = {
+      ...filters,
+      search: '',
+      page: 1,
+      minCreditLimit: undefined,
+      maxCreditLimit: undefined,
+      minInterestRate: undefined,
+      maxInterestRate: undefined,
+      dateFrom: undefined,
+      dateTo: undefined,
+      clientId: undefined,
+    };
+    setFilters(resetFilters);
+    handleFilterChange(resetFilters);
+  }, [filters, handleFilterChange]);
 
   const handleViewDetails = (batchId: number) => {
     navigate(`/result/batch/${batchId}`);
@@ -106,7 +173,7 @@ const AssessmentResults = () => {
     }
   };
 
-  // Group results by batch with better error handling
+  // Group results by batch - now works with paginated data
   const batchSummaries: BatchSummary[] = React.useMemo(() => {
     if (!results || results.length === 0) return [];
 
@@ -150,7 +217,7 @@ const AssessmentResults = () => {
   }, [results, filters.search, viewMode]);
 
   // Better loading state
-  if (loading) {
+  if (loading && !filterLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center">
@@ -168,7 +235,7 @@ const AssessmentResults = () => {
         <div className="text-center">
           <div className="text-red-500 mb-4">Error: {error}</div>
           <Button 
-            onClick={() => window.location.reload()} 
+            onClick={() => fetchResults(filters)} 
             variant="outline"
           >
             Retry
@@ -196,80 +263,217 @@ const AssessmentResults = () => {
       </div>
 
       {/* Filter controls */}
-      <div className="bg-white shadow rounded-lg p-4 mb-4 flex flex-wrap gap-4 items-end">
-        {/* Search field */}
-        <div>
-          <label className="block text-xs font-medium text-gray-700" htmlFor="search-input">Search</label>
-          <input
-            id="search-input"
-            type="text"
-            className="form-input mt-1 block w-full"
-            placeholder={viewMode === 'batch' ? "Client name, reference, or batch ID" : "Client name or reference"}
-            value={filters.search}
-            onChange={e => setFilters(f => ({ ...f, search: e.target.value, page: 1 }))}
-          />
+      <div className="bg-white shadow rounded-lg p-4 mb-4">
+        {/* Loading indicator for filter changes */}
+        {filterLoading && (
+          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+              <span className="text-sm text-blue-700">Updating results...</span>
+            </div>
+          </div>
+        )}
+        
+        <div className="flex flex-wrap gap-4 items-end">
+          {/* Search field */}
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-medium text-gray-700" htmlFor="search-input">Search</label>
+            <input
+              id="search-input"
+              type="text"
+              className="form-input mt-1 block w-full"
+              placeholder={viewMode === 'batch' ? "Client name, reference, or batch ID" : "Client name or reference"}
+              value={filters.search}
+              onChange={e => handleSearchChange(e.target.value)}
+              disabled={filterLoading}
+            />
+          </div>
+          
+          {/* Batch/Client toggle dropdown */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700" htmlFor="viewmode-select">View</label>
+            <select
+              id="viewmode-select"
+              className="form-select mt-1 block w-full"
+              value={viewMode}
+              onChange={e => handleViewModeChange(e.target.value as 'batch' | 'client')}
+              disabled={filterLoading}
+              title="View Mode"
+            >
+              <option value="batch">Batch Uploads</option>
+              <option value="client">All Clients</option>
+            </select>
+          </div>
+          
+          {/* Sort By dropdown */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700" htmlFor="sortby-select">Sort By</label>
+            <select
+              id="sortby-select"
+              className="form-select mt-1 block w-full"
+              value={filters.sortBy}
+              onChange={e => handleSortChange(e.target.value, filters.sortOrder)}
+              disabled={filterLoading}
+              title="Sort By"
+            >
+              <option value="createdAt">Date Processed</option>
+              <option value="credit_limit">Credit Limit</option>
+              <option value="interest_rate">Interest Rate</option>
+            </select>
+          </div>
+          
+          {/* Sort Order dropdown */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700" htmlFor="order-select">Order</label>
+            <select
+              id="order-select"
+              className="form-select mt-1 block w-full"
+              value={filters.sortOrder}
+              onChange={e => handleSortChange(filters.sortBy, e.target.value as 'ASC' | 'DESC')}
+              disabled={filterLoading}
+              title="Order"
+            >
+              <option value="DESC">Descending</option>
+              <option value="ASC">Ascending</option>
+            </select>
+          </div>
+          
+          {/* Page Size dropdown */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700" htmlFor="pagesize-select">Page Size</label>
+            <select
+              id="pagesize-select"
+              className="form-select mt-1 block w-full"
+              value={filters.limit}
+              onChange={e => handleFilterChange({ ...filters, limit: Number(e.target.value), page: 1 })}
+              disabled={filterLoading}
+              title="Page Size"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
         </div>
-        {/* Batch/Client toggle dropdown */}
-        <div>
-          <label className="block text-xs font-medium text-gray-700" htmlFor="viewmode-select">View</label>
-          <select
-            id="viewmode-select"
-            className="form-select mt-1 block w-full"
-            value={viewMode}
-            onChange={e => {
-              setViewMode(e.target.value as 'batch' | 'client');
-              setFilters(f => ({ ...f, search: '', page: 1 })); // Clear search when switching views
-            }}
-            title="View Mode"
-          >
-            <option value="batch">Batch Uploads</option>
-            <option value="client">All Clients</option>
-          </select>
-        </div>
-        {/* Sort By dropdown */}
-        <div>
-          <label className="block text-xs font-medium text-gray-700" htmlFor="sortby-select">Sort By</label>
-          <select
-            id="sortby-select"
-            className="form-select mt-1 block w-full"
-            value={filters.sortBy}
-            onChange={e => setFilters(f => ({ ...f, sortBy: e.target.value, page: 1 }))}
-            title="Sort By"
-          >
-            <option value="createdAt">Date Processed</option>
-            <option value="credit_limit">Credit Limit</option>
-            <option value="interest_rate">Interest Rate</option>
-          </select>
-        </div>
-        {/* Sort Order dropdown */}
-        <div>
-          <label className="block text-xs font-medium text-gray-700" htmlFor="order-select">Order</label>
-          <select
-            id="order-select"
-            className="form-select mt-1 block w-full"
-            value={filters.sortOrder}
-            onChange={e => setFilters(f => ({ ...f, sortOrder: e.target.value as 'ASC' | 'DESC', page: 1 }))}
-            title="Order"
-          >
-            <option value="DESC">Descending</option>
-            <option value="ASC">Ascending</option>
-          </select>
-        </div>
-        {/* Page Size dropdown */}
-        <div>
-          <label className="block text-xs font-medium text-gray-700" htmlFor="pagesize-select">Page Size</label>
-          <select
-            id="pagesize-select"
-            className="form-select mt-1 block w-full"
-            value={filters.limit}
-            onChange={e => setFilters(f => ({ ...f, limit: Number(e.target.value), page: 1 }))}
-            title="Page Size"
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-        </div>
+
+        {/* Advanced filters - expandable section */}
+        <details className="mt-4">
+          <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+            Advanced Filters
+          </summary>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Credit Limit Range */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700">Min Credit Limit</label>
+              <input
+                type="number"
+                className="form-input mt-1 block w-full"
+                placeholder="Min amount"
+                value={filters.minCreditLimit || ''}
+                onChange={e => {
+                  const value = e.target.value ? Number(e.target.value) : undefined;
+                  handleFilterChange({ ...filters, minCreditLimit: value, page: 1 });
+                }}
+                disabled={filterLoading}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700">Max Credit Limit</label>
+              <input
+                type="number"
+                className="form-input mt-1 block w-full"
+                placeholder="Max amount"
+                value={filters.maxCreditLimit || ''}
+                onChange={e => {
+                  const value = e.target.value ? Number(e.target.value) : undefined;
+                  handleFilterChange({ ...filters, maxCreditLimit: value, page: 1 });
+                }}
+                disabled={filterLoading}
+              />
+            </div>
+            
+            {/* Interest Rate Range */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700">Min Interest Rate (%)</label>
+              <input
+                type="number"
+                step="0.1"
+                className="form-input mt-1 block w-full"
+                placeholder="Min rate"
+                value={filters.minInterestRate || ''}
+                onChange={e => {
+                  const value = e.target.value ? Number(e.target.value) : undefined;
+                  handleFilterChange({ ...filters, minInterestRate: value, page: 1 });
+                }}
+                disabled={filterLoading}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700">Max Interest Rate (%)</label>
+              <input
+                type="number"
+                step="0.1"
+                className="form-input mt-1 block w-full"
+                placeholder="Max rate"
+                value={filters.maxInterestRate || ''}
+                onChange={e => {
+                  const value = e.target.value ? Number(e.target.value) : undefined;
+                  handleFilterChange({ ...filters, maxInterestRate: value, page: 1 });
+                }}
+                disabled={filterLoading}
+              />
+            </div>
+            
+            {/* Date Range */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700">Date From</label>
+              <input
+                type="date"
+                className="form-input mt-1 block w-full"
+                value={filters.dateFrom || ''}
+                onChange={e => handleFilterChange({ ...filters, dateFrom: e.target.value || undefined, page: 1 })}
+                disabled={filterLoading}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700">Date To</label>
+              <input
+                type="date"
+                className="form-input mt-1 block w-full"
+                value={filters.dateTo || ''}
+                onChange={e => handleFilterChange({ ...filters, dateTo: e.target.value || undefined, page: 1 })}
+                disabled={filterLoading}
+              />
+            </div>
+            
+            {/* Clear filters button */}
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const resetFilters = {
+                    ...filters,
+                    search: '',
+                    page: 1,
+                    minCreditLimit: undefined,
+                    maxCreditLimit: undefined,
+                    minInterestRate: undefined,
+                    maxInterestRate: undefined,
+                    dateFrom: undefined,
+                    dateTo: undefined,
+                    clientId: undefined,
+                  };
+                  setFilters(resetFilters);
+                  handleFilterChange(resetFilters);
+                }}
+                disabled={filterLoading}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+        </details>
       </div>
 
       {/* Summary section - only show if we have data */}
@@ -383,7 +587,7 @@ const AssessmentResults = () => {
                 {filters.search && (
                   <button 
                     className="mt-2 text-blue-600 hover:text-blue-800"
-                    onClick={() => setFilters(f => ({ ...f, search: '', page: 1 }))}
+                    onClick={() => handleSearchChange('')}
                   >
                     Clear search
                   </button>
@@ -396,13 +600,13 @@ const AssessmentResults = () => {
             <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
               <div className="flex-1 flex justify-between sm:hidden">
                 <Button
-                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
                 >
                   Previous
                 </Button>
                 <Button
-                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
                 >
                   Next
@@ -419,13 +623,13 @@ const AssessmentResults = () => {
                 <div>
                   <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                     <Button
-                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                      onClick={() => handlePageChange(pagination.page - 1)}
                       disabled={pagination.page === 1}
                     >
                       Previous
                     </Button>
                     <Button
-                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                      onClick={() => handlePageChange(pagination.page + 1)}
                       disabled={pagination.page === pagination.totalPages}
                     >
                       Next
@@ -484,7 +688,7 @@ const AssessmentResults = () => {
                 {filters.search && (
                   <button 
                     className="mt-2 text-blue-600 hover:text-blue-800"
-                    onClick={() => setFilters(f => ({ ...f, search: '', page: 1 }))}
+                    onClick={() => handleSearchChange('')}
                   >
                     Clear search
                   </button>
@@ -497,13 +701,13 @@ const AssessmentResults = () => {
             <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
               <div className="flex-1 flex justify-between sm:hidden">
                 <Button
-                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
                 >
                   Previous
                 </Button>
                 <Button
-                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
                 >
                   Next
@@ -520,13 +724,13 @@ const AssessmentResults = () => {
                 <div>
                   <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                     <Button
-                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                      onClick={() => handlePageChange(pagination.page - 1)}
                       disabled={pagination.page === 1}
                     >
                       Previous
                     </Button>
                     <Button
-                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                      onClick={() => handlePageChange(pagination.page + 1)}
                       disabled={pagination.page === pagination.totalPages}
                     >
                       Next

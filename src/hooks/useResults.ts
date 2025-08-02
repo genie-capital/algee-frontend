@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   Result,
   resultsService,
@@ -49,15 +49,20 @@ export const useResults = (options: UseResultsOptions = {}) => {
   const [clientHistory, setClientHistory] = useState<ClientResultHistoryResponse['data'] | null>(null);
   const [clientDetailed, setClientDetailed] = useState<ClientResultDetailedResponse['data'] | null>(null);
   const [compareData, setCompareData] = useState<CompareResultsResponse['data'] | null>(null);
+  
+  // Add debounce ref for search
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchResults = useCallback(async (_params: any) => {
+  const fetchResults = useCallback(async (params: any) => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Starting fetchResults call...');
-      // Always fetch all results, ignore params
-      const response = await resultsService.getAllResults({});
+      console.log('Starting fetchResults call with params:', params);
+      
+      // Use the actual parameters passed to the function
+      const response = await resultsService.getAllResults(params);
       console.log('API response received:', response);
+      
       if (response.success) {
         setResults(response.data.results);
         setPagination(response.data.pagination);
@@ -79,6 +84,20 @@ export const useResults = (options: UseResultsOptions = {}) => {
       setLoading(false);
     }
   }, []);
+
+  // Add debounced search function
+  const debouncedSearch = useCallback((searchTerm: string, currentFilters: any) => {
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      const newFilters = { ...currentFilters, search: searchTerm, page: 1 };
+      fetchResults(newFilters);
+    }, 500); // 500ms delay
+  }, [fetchResults]);
 
   const getLatestClientResult = useCallback(async (clientId: number, uploadBatchId?: number) => {
     try {
@@ -207,6 +226,7 @@ export const useResults = (options: UseResultsOptions = {}) => {
     clientDetailed,
     compareData,
     fetchResults,
+    debouncedSearch,
     getLatestClientResult,
     getClientResultHistory,
     getClientResultDetailed,
