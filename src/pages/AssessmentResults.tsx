@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import Layout from '../components/Layout';
@@ -28,6 +28,8 @@ type SortOrder = 'ASC' | 'DESC';
 
 const AssessmentResults = () => {
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth(); // Get user and admin status from auth context
+  
   const {
     loading,
     error,
@@ -35,6 +37,7 @@ const AssessmentResults = () => {
     pagination,
     summary,
     fetchResults,
+    fetchInstitutionResults, // Use the new institution-specific fetch
     debouncedSearch,
     exportResults,
     getLatestClientResult
@@ -59,14 +62,71 @@ const AssessmentResults = () => {
     clientId: undefined as number | undefined,
   });
 
+  // Group results by batch - now works with paginated data
+  const batchSummaries: BatchSummary[] = useMemo(() => {
+    if (!results || results.length === 0) return [];
+
+    const filteredResults = results.filter(r => {
+      if (!viewMode || viewMode !== 'batch' || !filters.search || !/\d+/.test(filters.search.trim())) {
+        return true;
+      }
+      const batchId = Number(filters.search.trim());
+      return r.uploadBatchId === batchId;
+    });
+
+    return filteredResults.reduce((acc: BatchSummary[], result: Result) => {
+      if (!result.uploadBatchId) return acc;
+
+      const existingBatch = acc.find(batch => batch.id === result.uploadBatchId);
+      if (existingBatch) {
+        return acc;
+      }
+
+      const batchResults = filteredResults.filter(r => r.uploadBatchId === result.uploadBatchId);
+      if (batchResults.length === 0) return acc;
+
+      const avgCreditLimit = batchResults.reduce((sum, r) => sum + (r.credit_limit || 0), 0) / batchResults.length;
+      const avgInterestRate = batchResults.reduce((sum, r) => sum + (r.interest_rate || 0), 0) / batchResults.length;
+      const creditLimits = batchResults.map(r => r.credit_limit || 0).filter(limit => limit > 0);
+
+      acc.push({
+        id: result.uploadBatchId,
+        name: result.uploadBatch?.name || 'Unknown Batch',
+        filename: result.uploadBatch?.filename || 'Unknown File',
+        createdAt: result.createdAt,
+        totalResults: batchResults.length,
+        avgCreditLimit,
+        avgInterestRate,
+        creditLimitRange: {
+          min: creditLimits.length > 0 ? Math.min(...creditLimits) : 0,
+          max: creditLimits.length > 0 ? Math.max(...creditLimits) : 0
+        }
+      });
+      return acc;
+    }, []);
+  }, [results, filters.search, viewMode]);
+
   // Add loading state for filter changes
   const [filterLoading, setFilterLoading] = useState(false);
 
-  // Initial data fetch
+  // Initial data fetch - now institution-aware
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) return; // Wait for user to be loaded
+      
       try {
-        await fetchResults(filters);
+        if (isAdmin) {
+          // Admin users see all results
+          await fetchResults(filters);
+        } else {
+          // Institution users see only their results
+          if (user.institutionId) {
+            await fetchInstitutionResults(user.institutionId, filters);
+          } else {
+            console.error('Institution user missing institutionId');
+            // setError('Unable to load results: Institution ID not found');
+          }
+        }
       } catch (err) {
         console.error('Error fetching results:', err);
         // Add more specific error handling for 500 errors
@@ -77,26 +137,39 @@ const AssessmentResults = () => {
     };
 
     fetchData();
-  }, []); // Only run on mount
+  }, [user, isAdmin]); // Depend on user and isAdmin instead of empty array
 
-  // Handle filter changes - trigger API calls
+  // Handle filter changes - trigger API calls (institution-aware)
   const handleFilterChange = useCallback(async (newFilters: typeof filters) => {
+    if (!user) return;
+    
     setFilterLoading(true);
     try {
-      await fetchResults(newFilters);
+      if (isAdmin) {
+        await fetchResults(newFilters);
+      } else {
+        if (user.institutionId) {
+          await fetchInstitutionResults(user.institutionId, newFilters);
+        }
+      }
     } catch (err) {
       console.error('Error updating filters:', err);
     } finally {
       setFilterLoading(false);
     }
-  }, [fetchResults]);
+  }, [fetchResults, fetchInstitutionResults, user, isAdmin]);
 
-  // Handle search with debouncing
+  // Handle search with debouncing (institution-aware)
   const handleSearchChange = useCallback((searchTerm: string) => {
+    if (!user) return;
+    
     const newFilters = { ...filters, search: searchTerm, page: 1 };
     setFilters(newFilters);
-    debouncedSearch(searchTerm, newFilters);
-  }, [filters, debouncedSearch]);
+    
+    // Pass institutionId for institution users
+    const institutionId = !isAdmin && user.institutionId ? user.institutionId : undefined;
+    debouncedSearch(searchTerm, newFilters, institutionId);
+  }, [filters, debouncedSearch, user, isAdmin]);
 
   // Handle pagination
   const handlePageChange = useCallback((newPage: number) => {
@@ -173,48 +246,17 @@ const AssessmentResults = () => {
     }
   };
 
-  // Group results by batch - now works with paginated data
-  const batchSummaries: BatchSummary[] = React.useMemo(() => {
-    if (!results || results.length === 0) return [];
-
-    // If in batch view and search is a numeric batch ID, filter results to only that batch
-    let filteredResults = results;
-    if (viewMode === 'batch' && filters.search && /^\d+$/.test(filters.search.trim())) {
-      const batchId = Number(filters.search.trim());
-      filteredResults = results.filter(r => r.uploadBatchId === batchId);
-    }
-
-    return filteredResults.reduce((acc: BatchSummary[], result: Result) => {
-      if (!result.uploadBatchId) return acc;
-
-      const existingBatch = acc.find(batch => batch.id === result.uploadBatchId);
-      if (existingBatch) {
-        return acc;
-      }
-
-      const batchResults = filteredResults.filter(r => r.uploadBatchId === result.uploadBatchId);
-      if (batchResults.length === 0) return acc;
-
-      const avgCreditLimit = batchResults.reduce((sum, r) => sum + (r.credit_limit || 0), 0) / batchResults.length;
-      const avgInterestRate = batchResults.reduce((sum, r) => sum + (r.interest_rate || 0), 0) / batchResults.length;
-      const creditLimits = batchResults.map(r => r.credit_limit || 0).filter(limit => limit > 0);
-
-      acc.push({
-        id: result.uploadBatchId,
-        name: result.uploadBatch?.name || 'Unknown Batch',
-        filename: result.uploadBatch?.filename || 'Unknown File',
-        createdAt: result.createdAt,
-        totalResults: batchResults.length,
-        avgCreditLimit,
-        avgInterestRate,
-        creditLimitRange: {
-          min: creditLimits.length > 0 ? Math.min(...creditLimits) : 0,
-          max: creditLimits.length > 0 ? Math.max(...creditLimits) : 0
-        }
-      });
-      return acc;
-    }, []);
-  }, [results, filters.search, viewMode]);
+  // Don't render if user is not loaded yet
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="text-gray-500 mt-4">Loading user data...</div>
+        </div>
+      </div>
+    );
+  }
 
   // Better loading state
   if (loading && !filterLoading) {
@@ -235,7 +277,13 @@ const AssessmentResults = () => {
         <div className="text-center">
           <div className="text-red-500 mb-4">Error: {error}</div>
           <Button 
-            onClick={() => fetchResults(filters)} 
+            onClick={() => {
+              if (isAdmin) {
+                fetchResults(filters);
+              } else if (user.institutionId) {
+                fetchInstitutionResults(user.institutionId, filters);
+              }
+            }} 
             variant="outline"
           >
             Retry
@@ -255,9 +303,15 @@ const AssessmentResults = () => {
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
             Assessment Results
+            {!isAdmin && user.institutionName && (
+              <span className="text-lg font-normal text-gray-500 ml-2">
+                - {user.institutionName}
+              </span>
+            )}
           </h2>
           <p className="mt-1 text-sm text-gray-500">
             View and manage credit scoring results
+            {!isAdmin && " for your institution"}
           </p>
         </div>
       </div>

@@ -85,8 +85,40 @@ export const useResults = (options: UseResultsOptions = {}) => {
     }
   }, []);
 
+  // NEW: Fetch results for a specific institution
+  const fetchInstitutionResults = useCallback(async (institutionId: number, params: any) => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Starting fetchInstitutionResults call with institutionId:', institutionId, 'params:', params);
+      
+      const response = await resultsService.getInstitutionResults(institutionId, params);
+      console.log('API response received:', response);
+      
+      if (response.success) {
+        setResults(response.data.results);
+        setPagination(response.data.pagination);
+        setSummary(response.data.summary);
+        setFilters(response.data.filters);
+      } else {
+        console.error('API returned success: false with message:', response.message);
+        setError(response.message || 'Failed to fetch institution results');
+      }
+    } catch (err) {
+      console.error('Error in fetchInstitutionResults:', err);
+      console.error('Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        response: (err as any)?.response?.data
+      });
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching institution results');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Add debounced search function
-  const debouncedSearch = useCallback((searchTerm: string, currentFilters: any) => {
+  const debouncedSearch = useCallback((searchTerm: string, currentFilters: any, institutionId?: number) => {
     // Clear existing timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -95,9 +127,13 @@ export const useResults = (options: UseResultsOptions = {}) => {
     // Set new timeout for debounced search
     searchTimeoutRef.current = setTimeout(() => {
       const newFilters = { ...currentFilters, search: searchTerm, page: 1 };
-      fetchResults(newFilters);
+      if (institutionId) {
+        fetchInstitutionResults(institutionId, newFilters);
+      } else {
+        fetchResults(newFilters);
+      }
     }, 500); // 500ms delay
-  }, [fetchResults]);
+  }, [fetchResults, fetchInstitutionResults]);
 
   const getLatestClientResult = useCallback(async (clientId: number, uploadBatchId?: number) => {
     try {
@@ -226,6 +262,7 @@ export const useResults = (options: UseResultsOptions = {}) => {
     clientDetailed,
     compareData,
     fetchResults,
+    fetchInstitutionResults, // NEW: Add this to the returned object
     debouncedSearch,
     getLatestClientResult,
     getClientResultHistory,
@@ -234,4 +271,4 @@ export const useResults = (options: UseResultsOptions = {}) => {
     compareResults,
     exportResults
   };
-}; 
+};

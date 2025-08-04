@@ -194,7 +194,219 @@ GET /api/result/getAllResults?page=1&limit=10&search=john&minCreditLimit=100000&
 }
 ```
 
-### 2. Get Latest Client Result
+### 2. Get All Results for a Specific Institution
+
+**GET** `/api/result/institution/:institutionId`
+
+Retrieve all results for a specific institution with comprehensive filtering and search capabilities. This endpoint is specifically designed for institution users to access only their own data with automatic institution filtering.
+
+#### Parameters
+- `institutionId` (path): Institution ID
+
+#### Query Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | number | 1 | Page number for pagination |
+| `limit` | number | 20 | Number of results per page |
+| `sortBy` | string | createdAt | Field to sort by |
+| `sortOrder` | string | DESC | Sort order (ASC/DESC) |
+| `search` | string | - | Search in client name, reference, email, phone |
+| `uploadBatchId` | number | - | Filter by upload batch |
+| `minCreditLimit` | number | - | Minimum credit limit filter |
+| `maxCreditLimit` | number | - | Maximum credit limit filter |
+| `minInterestRate` | number | - | Minimum interest rate filter |
+| `maxInterestRate` | number | - | Maximum interest rate filter |
+| `dateFrom` | string | - | Start date filter (ISO format) |
+| `dateTo` | string | - | End date filter (ISO format) |
+| `clientId` | number | - | Filter by specific client |
+
+#### Access Control
+- **Institution Users**: Can only access results from their own institution (institutionId must match their user ID)
+- **Admin Users**: Can access results from any institution
+- **Automatic Filtering**: Results are automatically filtered to only show data from the specified institution's clients and upload batches
+- **Role-Based Data**: Sensitive weight fields are filtered out for non-admin users
+
+#### Example Request
+```bash
+GET /api/result/institution/456?page=1&limit=10&search=john&minCreditLimit=100000&maxCreditLimit=1000000&sortBy=credit_limit&sortOrder=DESC
+```
+
+#### Example Response (Admin User)
+```json
+{
+  "success": true,
+  "message": "Institution results retrieved successfully",
+  "data": {
+    "results": [
+      {
+        "id": 1,
+        "clientId": 123,
+        "credit_limit": 750000,
+        "interest_rate": 15.5,
+        "sum_normalised_credit_limit_weights": 0.85,
+        "sum_normalised_interest_rate_weights": 0.72,
+        "uploadBatchId": 5,
+        "createdAt": "2025-06-06T10:30:00Z",
+        "client": {
+          "id": 123,
+          "reference_number": "CLIENT001",
+          "name": "John Doe",
+          "email": "john@example.com",
+          "phoneNumber": "+237677777777"
+        },
+        "uploadBatch": {
+          "id": 5,
+          "name": "Monthly Upload - June 2025",
+          "filename": "clients_june_2025.csv",
+          "createdAt": "2025-06-06T09:00:00Z",
+          "status": "completed"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 50,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 5
+    },
+    "summary": {
+      "totalResults": 50,
+      "avgCreditLimit": 625000,
+      "creditLimitRange": {
+        "min": 100000,
+        "max": 1500000
+      },
+      "avgInterestRate": 16.25,
+      "interestRateRange": {
+        "min": 12.0,
+        "max": 20.0
+      }
+    },
+    "filters": {
+      "applied": {
+        "search": "john",
+        "uploadBatchId": null,
+        "minCreditLimit": 100000,
+        "maxCreditLimit": 1000000,
+        "minInterestRate": null,
+        "maxInterestRate": null,
+        "dateFrom": null,
+        "dateTo": null,
+        "clientId": null
+      }
+    }
+  }
+}
+```
+
+#### Example Response (Institution User)
+```json
+{
+  "success": true,
+  "message": "Institution results retrieved successfully",
+  "data": {
+    "results": [
+      {
+        "id": 1,
+        "clientId": 123,
+        "credit_limit": 750000,
+        "interest_rate": 15.5,
+        "uploadBatchId": 5,
+        "createdAt": "2025-06-06T10:30:00Z",
+        "client": {
+          "id": 123,
+          "reference_number": "CLIENT001",
+          "name": "John Doe",
+          "email": "john@example.com",
+          "phoneNumber": "+237677777777"
+        },
+        "uploadBatch": {
+          "id": 5,
+          "name": "Monthly Upload - June 2025",
+          "filename": "clients_june_2025.csv",
+          "createdAt": "2025-06-06T09:00:00Z",
+          "status": "completed"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 50,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 5
+    },
+    "summary": {
+      "totalResults": 50,
+      "avgCreditLimit": 625000,
+      "creditLimitRange": {
+        "min": 100000,
+        "max": 1500000
+      },
+      "avgInterestRate": 16.25,
+      "interestRateRange": {
+        "min": 12.0,
+        "max": 20.0
+      }
+    },
+    "filters": {
+      "applied": {
+        "search": "john",
+        "uploadBatchId": null,
+        "minCreditLimit": 100000,
+        "maxCreditLimit": 1000000,
+        "minInterestRate": null,
+        "maxInterestRate": null,
+        "dateFrom": null,
+        "dateTo": null,
+        "clientId": null
+      }
+    }
+  }
+}
+```
+
+#### Usage Examples
+
+**Get first page of results for institution:**
+```bash
+GET /api/result/institution/456?page=1&limit=20
+```
+
+**Search for specific clients in institution:**
+```bash
+GET /api/result/institution/456?search=john&page=1
+```
+
+**Filter by credit limit range for institution:**
+```bash
+GET /api/result/institution/456?minCreditLimit=100000&maxCreditLimit=500000
+```
+
+**Filter by date range for institution:**
+```bash
+GET /api/result/institution/456?dateFrom=2024-01-01&dateTo=2024-12-31
+```
+
+**Get results from specific upload batch for institution:**
+```bash
+GET /api/result/institution/456?uploadBatchId=5
+```
+
+**Sort by credit limit descending for institution:**
+```bash
+GET /api/result/institution/456?sortBy=credit_limit&sortOrder=DESC
+```
+
+#### Key Differences from getAllResults
+
+1. **Institution-Specific**: Always filters results to only show data from the specified institution
+2. **Automatic Filtering**: No need to manually filter by institution - it's built into the endpoint
+3. **Security**: Provides additional layer of data isolation for institution users
+4. **Performance**: More efficient queries as they're pre-filtered by institution
+5. **Use Case**: Specifically designed for institution dashboards and reporting
+
+### 3. Get Latest Client Result
 
 **GET** `/api/result/client/:clientId/latest`
 
@@ -238,93 +450,6 @@ GET /api/result/client/123/latest?uploadBatchId=5
     "uploadBatch": {
       "name": "Monthly Upload - June 2025",
       "filename": "clients_june_2025.csv"
-    }
-  }
-}
-```
-
-### 3. Get Client Result History
-
-**GET** `/api/result/client/:clientId/history`
-
-Get historical credit scoring results for a specific client.
-
-#### Parameters
-- `clientId` (path): Client ID
-
-#### Query Parameters
-- `page` (number): Page number (default: 1)
-- `limit` (number): Results per page (default: 10)
-- `sortBy` (string): Sort field (default: createdAt)
-- `sortOrder` (string): Sort order (default: DESC)
-- `uploadBatchId` (number): Filter by upload batch
-
-#### Access Control
-- Institution users can only access clients that belong to their institution
-- Results are automatically filtered to show only data from the user's institution
-
-#### Example Request
-```bash
-GET /api/result/client/123/history?page=1&limit=5&sortBy=createdAt&sortOrder=DESC
-```
-
-#### Example Response
-```json
-{
-  "success": true,
-  "message": "Client result history retrieved successfully",
-  "data": {
-    "results": [
-      {
-        "id": 3,
-        "clientId": 123,
-        "credit_limit": 750000,
-        "interest_rate": 15.5,
-        "uploadBatchId": 5,
-        "createdAt": "2025-06-06T10:30:00Z",
-        "client": {
-          "id": 123,
-          "reference_number": "CLIENT001",
-          "name": "John Doe",
-          "email": "john@example.com",
-          "phoneNumber": "+237677777777"
-        },
-        "uploadBatch": {
-          "id": 5,
-          "name": "Monthly Upload - June 2025",
-          "filename": "clients_june_2025.csv",
-          "createdAt": "2025-06-06T09:00:00Z",
-          "status": "completed"
-        }
-      },
-      {
-        "id": 2,
-        "clientId": 123,
-        "credit_limit": 700000,
-        "interest_rate": 16.0,
-        "uploadBatchId": 4,
-        "createdAt": "2025-05-06T10:30:00Z",
-        "client": {
-          "id": 123,
-          "reference_number": "CLIENT001",
-          "name": "John Doe",
-          "email": "john@example.com",
-          "phoneNumber": "+237677777777"
-        },
-        "uploadBatch": {
-          "id": 4,
-          "name": "Monthly Upload - May 2025",
-          "filename": "clients_may_2025.csv",
-          "createdAt": "2025-05-06T09:00:00Z",
-          "status": "completed"
-        }
-      }
-    ],
-    "pagination": {
-      "total": 8,
-      "page": 1,
-      "limit": 5,
-      "totalPages": 2
     }
   }
 }
@@ -453,7 +578,94 @@ GET /api/result/client/123/detailed?uploadBatchId=5
 }
 ```
 
-### 5. Compare Client Results Across Batches
+### 5. Get Client Result History
+
+**GET** `/api/result/client/:clientId/history`
+
+Get historical credit scoring results for a specific client.
+
+#### Parameters
+- `clientId` (path): Client ID
+
+#### Query Parameters
+- `page` (number): Page number (default: 1)
+- `limit` (number): Results per page (default: 10)
+- `sortBy` (string): Sort field (default: createdAt)
+- `sortOrder` (string): Sort order (default: DESC)
+- `uploadBatchId` (number): Filter by upload batch
+
+#### Access Control
+- Institution users can only access clients that belong to their institution
+- Results are automatically filtered to show only data from the user's institution
+
+#### Example Request
+```bash
+GET /api/result/client/123/history?page=1&limit=5&sortBy=createdAt&sortOrder=DESC
+```
+
+#### Example Response
+```json
+{
+  "success": true,
+  "message": "Client result history retrieved successfully",
+  "data": {
+    "results": [
+      {
+        "id": 3,
+        "clientId": 123,
+        "credit_limit": 750000,
+        "interest_rate": 15.5,
+        "uploadBatchId": 5,
+        "createdAt": "2025-06-06T10:30:00Z",
+        "client": {
+          "id": 123,
+          "reference_number": "CLIENT001",
+          "name": "John Doe",
+          "email": "john@example.com",
+          "phoneNumber": "+237677777777"
+        },
+        "uploadBatch": {
+          "id": 5,
+          "name": "Monthly Upload - June 2025",
+          "filename": "clients_june_2025.csv",
+          "createdAt": "2025-06-06T09:00:00Z",
+          "status": "completed"
+        }
+      },
+      {
+        "id": 2,
+        "clientId": 123,
+        "credit_limit": 700000,
+        "interest_rate": 16.0,
+        "uploadBatchId": 4,
+        "createdAt": "2025-05-06T10:30:00Z",
+        "client": {
+          "id": 123,
+          "reference_number": "CLIENT001",
+          "name": "John Doe",
+          "email": "john@example.com",
+          "phoneNumber": "+237677777777"
+        },
+        "uploadBatch": {
+          "id": 4,
+          "name": "Monthly Upload - May 2025",
+          "filename": "clients_may_2025.csv",
+          "createdAt": "2025-05-06T09:00:00Z",
+          "status": "completed"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 8,
+      "page": 1,
+      "limit": 5,
+      "totalPages": 2
+    }
+  }
+}
+```
+
+### 6. Compare Client Results Across Batches
 
 **GET** `/api/result/client/:clientId/compare`
 
@@ -682,7 +894,7 @@ GET /api/result/client/123/compare?batch1Id=5&dateFrom2=2025-06-01&dateTo2=2025-
 }
 ```
 
-### 6. Get Results by Upload Batch
+### 7. Get Results by Upload Batch
 
 **GET** `/api/result/batch/:uploadBatchId`
 
@@ -753,7 +965,7 @@ GET /api/result/batch/5?page=1&limit=10&search=john
 }
 ```
 
-### 7. Compare Results
+### 8. Compare Results
 
 **GET** `/api/result/compare`
 
@@ -806,7 +1018,7 @@ GET /api/result/compare?batch1Id=5&batch2Id=6
 }
 ```
 
-### 8. Export Results
+### 9. Export Results
 
 **GET** `/api/result/export`
 
@@ -867,7 +1079,7 @@ Client ID,Client Name,Email,Phone,Credit Limit,Interest Rate,Upload Batch,Create
 }
 ```
 
-### 9. API Health Check
+### 10. API Health Check
 
 **GET** `/api/result/`
 

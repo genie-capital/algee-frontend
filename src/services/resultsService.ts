@@ -139,7 +139,6 @@ export const resultsService = {
     sortBy?: string;
     sortOrder?: 'ASC' | 'DESC';
     search?: string;
-    // uploadBatchId?: number; // Removed, batch filtering is now frontend only
     minCreditLimit?: number;
     maxCreditLimit?: number;
     minInterestRate?: number;
@@ -151,6 +150,28 @@ export const resultsService = {
     console.log('resultsService.getAllResults called with params:', params);
     console.log('Making API call to: /result');
     const response = await api.get('/result/getAllResults', { params });
+    console.log('API response in resultsService:', response);
+    return response.data;
+  },
+
+  // NEW: Get results for a specific institution
+  getInstitutionResults: async (institutionId: number, params: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
+    search?: string;
+    minCreditLimit?: number;
+    maxCreditLimit?: number;
+    minInterestRate?: number;
+    maxInterestRate?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    clientId?: number;
+  }): Promise<ResultsResponse> => {
+    console.log('resultsService.getInstitutionResults called with institutionId:', institutionId, 'params:', params);
+    console.log('Making API call to: /result/institution/' + institutionId);
+    const response = await api.get(`/result/institution/${institutionId}`, { params });
     console.log('API response in resultsService:', response);
     return response.data;
   },
@@ -227,4 +248,4 @@ export const resultsService = {
   }
 };
 
-export default resultsService; 
+export default resultsService;
