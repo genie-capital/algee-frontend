@@ -28,7 +28,7 @@ type SortOrder = 'ASC' | 'DESC';
 
 const AssessmentResults = () => {
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth(); // Get user and admin status from auth context
+  const { user, isAdmin } = useAuth();
   
   const {
     loading,
@@ -36,9 +36,11 @@ const AssessmentResults = () => {
     results,
     pagination,
     summary,
+    isDataCached,
     fetchResults,
-    fetchInstitutionResults, // Use the new institution-specific fetch
-    debouncedSearch,
+    fetchInstitutionResults,
+    instantSearch, // Use instant search instead of debounced
+    refreshData, // For force refresh
     exportResults,
     getLatestClientResult
   } = useResults();
@@ -52,7 +54,7 @@ const AssessmentResults = () => {
     limit: 10,
     sortBy: 'createdAt',
     sortOrder: 'DESC' as SortOrder,
-    search: '', // for client name, reference, or batch ID
+    search: '',
     minCreditLimit: undefined as number | undefined,
     maxCreditLimit: undefined as number | undefined,
     minInterestRate: undefined as number | undefined,
@@ -62,7 +64,10 @@ const AssessmentResults = () => {
     clientId: undefined as number | undefined,
   });
 
-  // Group results by batch - now works with paginated data
+  // Add loading state for non-search filter changes
+  const [filterLoading, setFilterLoading] = useState(false);
+
+  // Group results by batch - now works with cached/filtered data
   const batchSummaries: BatchSummary[] = useMemo(() => {
     if (!results || results.length === 0) return [];
 
@@ -106,30 +111,23 @@ const AssessmentResults = () => {
     }, []);
   }, [results, filters.search, viewMode]);
 
-  // Add loading state for filter changes
-  const [filterLoading, setFilterLoading] = useState(false);
-
-  // Initial data fetch - now institution-aware
+  // Initial data fetch - now with caching
   useEffect(() => {
     const fetchData = async () => {
-      if (!user) return; // Wait for user to be loaded
+      if (!user) return;
       
       try {
         if (isAdmin) {
-          // Admin users see all results
           await fetchResults(filters);
         } else {
-          // Institution users see only their results
           if (user.institutionId) {
             await fetchInstitutionResults(user.institutionId, filters);
           } else {
             console.error('Institution user missing institutionId');
-            // setError('Unable to load results: Institution ID not found');
           }
         }
       } catch (err) {
         console.error('Error fetching results:', err);
-        // Add more specific error handling for 500 errors
         if ((err as any)?.response?.status === 500) {
           console.error('Server error - this might be a backend issue. Please check server logs.');
         }
@@ -137,39 +135,53 @@ const AssessmentResults = () => {
     };
 
     fetchData();
-  }, [user, isAdmin]); // Depend on user and isAdmin instead of empty array
+  }, [user, isAdmin]); // Only depend on user and isAdmin for initial load
 
-  // Handle filter changes - trigger API calls (institution-aware)
-  const handleFilterChange = useCallback(async (newFilters: typeof filters) => {
+  // Handle non-search filter changes that require API calls or cache refresh
+  const handleFilterChange = useCallback(async (newFilters: typeof filters, requiresApiCall = false) => {
     if (!user) return;
     
-    setFilterLoading(true);
-    try {
-      if (isAdmin) {
-        await fetchResults(newFilters);
-      } else {
-        if (user.institutionId) {
-          await fetchInstitutionResults(user.institutionId, newFilters);
+    if (requiresApiCall || !isDataCached) {
+      setFilterLoading(true);
+      try {
+        if (isAdmin) {
+          await fetchResults(newFilters);
+        } else {
+          if (user.institutionId) {
+            await fetchInstitutionResults(user.institutionId, newFilters);
+          }
         }
+      } catch (err) {
+        console.error('Error updating filters:', err);
+      } finally {
+        setFilterLoading(false);
       }
-    } catch (err) {
-      console.error('Error updating filters:', err);
-    } finally {
-      setFilterLoading(false);
+    } else {
+      // Use cached data with instant filtering
+      instantSearch(newFilters.search || '', newFilters);
     }
-  }, [fetchResults, fetchInstitutionResults, user, isAdmin]);
+  }, [fetchResults, fetchInstitutionResults, user, isAdmin, isDataCached, instantSearch]);
 
-  // Handle search with debouncing (institution-aware)
+  // Handle search with instant client-side filtering
   const handleSearchChange = useCallback((searchTerm: string) => {
     if (!user) return;
     
     const newFilters = { ...filters, search: searchTerm, page: 1 };
     setFilters(newFilters);
     
-    // Pass institutionId for institution users
-    const institutionId = !isAdmin && user.institutionId ? user.institutionId : undefined;
-    debouncedSearch(searchTerm, newFilters, institutionId);
-  }, [filters, debouncedSearch, user, isAdmin]);
+    // Use instant search if data is cached, otherwise fallback to API
+    if (isDataCached) {
+      instantSearch(searchTerm, newFilters);
+    } else {
+      // Data not cached yet, use API call
+      const institutionId = !isAdmin && user.institutionId ? user.institutionId : undefined;
+      if (institutionId) {
+        fetchInstitutionResults(institutionId, newFilters);
+      } else {
+        fetchResults(newFilters);
+      }
+    }
+  }, [filters, instantSearch, isDataCached, user, isAdmin, fetchInstitutionResults, fetchResults]);
 
   // Handle pagination
   const handlePageChange = useCallback((newPage: number) => {
@@ -178,17 +190,16 @@ const AssessmentResults = () => {
     handleFilterChange(newFilters);
   }, [filters, handleFilterChange]);
 
-  // Handle sort changes
+  // Handle sort changes - requires fresh data fetch
   const handleSortChange = useCallback((sortBy: string, sortOrder: SortOrder) => {
     const newFilters = { ...filters, sortBy, sortOrder, page: 1 };
     setFilters(newFilters);
-    handleFilterChange(newFilters);
+    handleFilterChange(newFilters, true); // Force API call for sorting
   }, [filters, handleFilterChange]);
 
   // Handle view mode change
   const handleViewModeChange = useCallback((newViewMode: 'batch' | 'client') => {
     setViewMode(newViewMode);
-    // Reset filters when switching views
     const resetFilters = {
       ...filters,
       search: '',
@@ -205,6 +216,16 @@ const AssessmentResults = () => {
     handleFilterChange(resetFilters);
   }, [filters, handleFilterChange]);
 
+  // Handle advanced filter changes that might require API calls
+  const handleAdvancedFilterChange = useCallback((filterKey: string, value: any) => {
+    const newFilters = { ...filters, [filterKey]: value, page: 1 };
+    setFilters(newFilters);
+    
+    // Advanced filters like date ranges might need fresh data
+    const requiresApiCall = ['dateFrom', 'dateTo', 'minCreditLimit', 'maxCreditLimit', 'minInterestRate', 'maxInterestRate'].includes(filterKey);
+    handleFilterChange(newFilters, requiresApiCall);
+  }, [filters, handleFilterChange]);
+
   const handleViewDetails = (batchId: number) => {
     navigate(`/result/batch/${batchId}`);
   };
@@ -217,7 +238,6 @@ const AssessmentResults = () => {
       });
     } catch (error) {
       console.error('Error exporting results:', error);
-      // Add user-friendly error handling here
       alert('Failed to export results. Please try again.');
     }
   };
@@ -246,6 +266,24 @@ const AssessmentResults = () => {
     }
   };
 
+  // Force refresh data function
+  const handleRefreshData = useCallback(async () => {
+    if (!user) return;
+    
+    setFilterLoading(true);
+    try {
+      if (isAdmin) {
+        await refreshData(filters);
+      } else if (user.institutionId) {
+        await refreshData(filters, user.institutionId);
+      }
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+    } finally {
+      setFilterLoading(false);
+    }
+  }, [user, isAdmin, filters, refreshData]);
+
   // Don't render if user is not loaded yet
   if (!user) {
     return (
@@ -258,8 +296,8 @@ const AssessmentResults = () => {
     );
   }
 
-  // Better loading state
-  if (loading && !filterLoading) {
+  // Better loading state - only show for initial load or non-cached operations
+  if (loading && !isDataCached) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center">
@@ -277,13 +315,7 @@ const AssessmentResults = () => {
         <div className="text-center">
           <div className="text-red-500 mb-4">Error: {error}</div>
           <Button 
-            onClick={() => {
-              if (isAdmin) {
-                fetchResults(filters);
-              } else if (user.institutionId) {
-                fetchInstitutionResults(user.institutionId, filters);
-              }
-            }} 
+            onClick={handleRefreshData}
             variant="outline"
           >
             Retry
@@ -312,13 +344,28 @@ const AssessmentResults = () => {
           <p className="mt-1 text-sm text-gray-500">
             View and manage credit scoring results
             {!isAdmin && " for your institution"}
+            {isDataCached && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                Data Cached - Instant Search
+              </span>
+            )}
           </p>
+        </div>
+        <div className="mt-4 flex md:mt-0 md:ml-4">
+          <Button
+            onClick={handleRefreshData}
+            variant="outline"
+            size="sm"
+            disabled={filterLoading}
+          >
+            {filterLoading ? 'Refreshing...' : 'Refresh Data'}
+          </Button>
         </div>
       </div>
 
       {/* Filter controls */}
       <div className="bg-white shadow rounded-lg p-4 mb-4">
-        {/* Loading indicator for filter changes */}
+        {/* Loading indicator for filter changes (not search) */}
         {filterLoading && (
           <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-md">
             <div className="flex items-center">
@@ -329,9 +376,11 @@ const AssessmentResults = () => {
         )}
         
         <div className="flex flex-wrap gap-4 items-end">
-          {/* Search field */}
+          {/* Search field - now with instant search indicator */}
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-gray-700" htmlFor="search-input">Search</label>
+            <label className="block text-xs font-medium text-gray-700" htmlFor="search-input">
+              Search {isDataCached && <span className="text-green-600">(Instant)</span>}
+            </label>
             <input
               id="search-input"
               type="text"
@@ -343,7 +392,7 @@ const AssessmentResults = () => {
             />
           </div>
           
-          {/* Batch/Client toggle dropdown */}
+          {/* View mode toggle */}
           <div>
             <label className="block text-xs font-medium text-gray-700" htmlFor="viewmode-select">View</label>
             <select
@@ -399,7 +448,7 @@ const AssessmentResults = () => {
               id="pagesize-select"
               className="form-select mt-1 block w-full"
               value={filters.limit}
-              onChange={e => handleFilterChange({ ...filters, limit: Number(e.target.value), page: 1 })}
+              onChange={e => handleAdvancedFilterChange('limit', Number(e.target.value))}
               disabled={filterLoading}
               title="Page Size"
             >
@@ -418,7 +467,7 @@ const AssessmentResults = () => {
           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Credit Limit Range */}
             <div>
-              <label className="block text-xs font-medium text-gray-700">Min Credit Limit</label>
+              <label className="block text-xs font-medium text-gray-700">Min Credit Limit (FCFA)</label>
               <input
                 type="number"
                 className="form-input mt-1 block w-full"
@@ -426,13 +475,13 @@ const AssessmentResults = () => {
                 value={filters.minCreditLimit || ''}
                 onChange={e => {
                   const value = e.target.value ? Number(e.target.value) : undefined;
-                  handleFilterChange({ ...filters, minCreditLimit: value, page: 1 });
+                  handleAdvancedFilterChange('minCreditLimit', value);
                 }}
                 disabled={filterLoading}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700">Max Credit Limit</label>
+              <label className="block text-xs font-medium text-gray-700">Max Credit Limit (FCFA)</label>
               <input
                 type="number"
                 className="form-input mt-1 block w-full"
@@ -440,7 +489,7 @@ const AssessmentResults = () => {
                 value={filters.maxCreditLimit || ''}
                 onChange={e => {
                   const value = e.target.value ? Number(e.target.value) : undefined;
-                  handleFilterChange({ ...filters, maxCreditLimit: value, page: 1 });
+                  handleAdvancedFilterChange('maxCreditLimit', value);
                 }}
                 disabled={filterLoading}
               />
@@ -457,7 +506,7 @@ const AssessmentResults = () => {
                 value={filters.minInterestRate || ''}
                 onChange={e => {
                   const value = e.target.value ? Number(e.target.value) : undefined;
-                  handleFilterChange({ ...filters, minInterestRate: value, page: 1 });
+                  handleAdvancedFilterChange('minInterestRate', value);
                 }}
                 disabled={filterLoading}
               />
@@ -472,7 +521,7 @@ const AssessmentResults = () => {
                 value={filters.maxInterestRate || ''}
                 onChange={e => {
                   const value = e.target.value ? Number(e.target.value) : undefined;
-                  handleFilterChange({ ...filters, maxInterestRate: value, page: 1 });
+                  handleAdvancedFilterChange('maxInterestRate', value);
                 }}
                 disabled={filterLoading}
               />
@@ -485,7 +534,7 @@ const AssessmentResults = () => {
                 type="date"
                 className="form-input mt-1 block w-full"
                 value={filters.dateFrom || ''}
-                onChange={e => handleFilterChange({ ...filters, dateFrom: e.target.value || undefined, page: 1 })}
+                onChange={e => handleAdvancedFilterChange('dateFrom', e.target.value || undefined)}
                 disabled={filterLoading}
               />
             </div>
@@ -495,7 +544,7 @@ const AssessmentResults = () => {
                 type="date"
                 className="form-input mt-1 block w-full"
                 value={filters.dateTo || ''}
-                onChange={e => handleFilterChange({ ...filters, dateTo: e.target.value || undefined, page: 1 })}
+                onChange={e => handleAdvancedFilterChange('dateTo', e.target.value || undefined)}
                 disabled={filterLoading}
               />
             </div>

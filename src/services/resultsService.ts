@@ -147,10 +147,7 @@ export const resultsService = {
     dateTo?: string;
     clientId?: number;
   }): Promise<ResultsResponse> => {
-    console.log('resultsService.getAllResults called with params:', params);
-    console.log('Making API call to: /result');
     const response = await api.get('/result/getAllResults', { params });
-    console.log('API response in resultsService:', response);
     return response.data;
   },
 
@@ -169,10 +166,7 @@ export const resultsService = {
     dateTo?: string;
     clientId?: number;
   }): Promise<ResultsResponse> => {
-    console.log('resultsService.getInstitutionResults called with institutionId:', institutionId, 'params:', params);
-    console.log('Making API call to: /result/institution/' + institutionId);
     const response = await api.get(`/result/institution/${institutionId}`, { params });
-    console.log('API response in resultsService:', response);
     return response.data;
   },
 

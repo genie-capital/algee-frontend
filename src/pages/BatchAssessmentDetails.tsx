@@ -33,7 +33,6 @@ const BatchAssessmentDetails = () => {
   useEffect(() => {
     const fetchBatchResults = async () => {
       if (!batchId) {
-        console.log('No batchId found in params.');
         return;
       }
       const batchIdNum = typeof batchId === 'string' ? parseInt(batchId, 10) : batchId;
@@ -49,14 +48,11 @@ const BatchAssessmentDetails = () => {
         if (search) params.search = search;
         if (dateFrom) params.dateFrom = dateFrom;
         if (dateTo) params.dateTo = dateTo;
-        console.log('Fetching batch results for batchId:', batchIdNum, 'with params:', params);
         const response = await resultsService.getResultsByBatch(batchIdNum, params);
-        console.log('API response:', response);
         setResults(response.data.results);
         setBatchSummary(response.data.batchSummary);
         setPagination(response.data.pagination);
       } catch (err: any) {
-        console.error('Error fetching batch results:', err);
         setError(err.message || 'Error fetching batch results');
       } finally {
         setLoading(false);
