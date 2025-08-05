@@ -43,7 +43,7 @@ const AssessmentResults = () => {
     refreshData, // For force refresh
     exportResults,
     getLatestClientResult
-  } = useResults();
+  } = useResults({}, user);
 
   // Add new state for view mode (batch or client)
   const [viewMode, setViewMode] = useState<'batch' | 'client'>('batch');

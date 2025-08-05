@@ -38,7 +38,7 @@ interface UseResultsOptions {
   initialFilters?: any;
 }
 
-export const useResults = (options: UseResultsOptions = {}) => {
+export const useResults = (options: UseResultsOptions = {}, user: any = null) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
