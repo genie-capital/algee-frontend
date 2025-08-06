@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from 'lucide-react';
 import Button from '../components/common/Button';
 import { useAuth } from '../contexts/AuthContext';
-// REMOVED: Layout import since it should be wrapped at route level
 import { resultsService, Result, BatchResultsResponse } from '../services/resultsService';
 
 const BatchAssessmentDetails = () => {
@@ -132,15 +131,21 @@ const BatchAssessmentDetails = () => {
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Average Credit Limit</p>
-                <p className="text-2xl font-semibold text-gray-900">{batchSummary.avgCreditLimit}</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {batchSummary.avgCreditLimit ? `${Number(batchSummary.avgCreditLimit).toFixed(2)} FCFA` : 'N/A'}
+                </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Average Interest Rate</p>
-                <p className="text-2xl font-semibold text-gray-900">{batchSummary.avgInterestRate}</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {batchSummary.avgInterestRate ? `${Number(batchSummary.avgInterestRate).toFixed(2)}%` : 'N/A'}
+                </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-500">Total Credit Limit</p>
-                <p className="text-2xl font-semibold text-gray-900">{batchSummary.totalCreditLimit}</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {batchSummary.totalCreditLimit ? `${Number(batchSummary.totalCreditLimit).toFixed(2)} FCFA` : 'N/A'}
+                </p>
               </div>
             </div>
           </div>
@@ -250,8 +255,8 @@ const BatchAssessmentDetails = () => {
                   <td className="px-6 py-4 whitespace-nowrap">{client.client.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{client.client.reference_number}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{client.client.phoneNumber}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{client.credit_limit !== undefined ? client.credit_limit : '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{client.interest_rate !== undefined ? client.interest_rate : '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{client.credit_limit !== undefined ? client.credit_limit : '-'}FCFA</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{client.interest_rate !== undefined ? client.interest_rate : '-'}%</td>
                   <td className="px-6 py-4 whitespace-nowrap">{client.createdAt ? formatDate(client.createdAt) : '-'}</td>
                 </tr>
               ))}
