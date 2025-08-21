@@ -73,16 +73,26 @@ The Algee API provides endpoints for managing administrative functions and insti
 8. [CSV Upload Management Endpoints](#csv-upload-management-endpoints)
    - [1. Upload and Process CSV File](#1-upload-and-process-csv-file)
    - [2. Get Upload Batches](#2-get-upload-batches)
-   - [3. Get Upload Batch Details](#3-get-upload-batch-details)
-   - [4. Get Upload Batch Errors](#4-get-upload-batch-errors)
-   - [5. Download CSV Template](#5-download-csv-template)
+   - [3. Get Upload Batches for Institution](#3-get-upload-batches-for-institution)
+   - [4. Get Upload Batch Details](#4-get-upload-batch-details)
+   - [5. Get Upload Batch Errors](#5-get-upload-batch-errors)
+   - [6. Download CSV Template](#6-download-csv-template)
 
 9. [Credit Scoring Endpoints](#credit-scoring-endpoints)
    - [1. Calculate Client Result](#1-calculate-client-result)
    - [2. Calculate Batch Results](#2-calculate-batch-results)
    - [3. Get Client Result](#3-get-client-result)
 
-10. [Data Models](#data-models)
+10. [Results Management Endpoints](#results-management-endpoints)
+   - [1. Get All Results](#1-get-all-results)
+   - [2. Get Latest Client Result](#2-get-latest-client-result)
+   - [3. Get Client Result History](#3-get-client-result-history)
+   - [4. Get Detailed Client Result](#4-get-detailed-client-result)
+   - [5. Get Results by Upload Batch](#5-get-results-by-upload-batch)
+   - [6. Compare Results](#6-compare-results)
+   - [7. Export Results](#7-export-results)
+
+11. [Data Models](#data-models)
    - [Admin Model](#admin-model)
    - [Institution Model](#institution-model)
    - [Parameter Model](#parameter-model)
@@ -96,18 +106,18 @@ The Algee API provides endpoints for managing administrative functions and insti
    - [ClientVariableValue Model](#clientvariablevalue-model)
    - [ClientResult Model](#clientresult-model)
 
-11. [Authentication Details](#authentication-details)
+12. [Authentication Details](#authentication-details)
    - [JWT Token Structure](#jwt-token-structure)
    - [Common Authentication Errors](#common-authentication-errors)
 
-12. [Error Handling](#error-handling)
+13. [Error Handling](#error-handling)
    - [Success Response Structure](#success-response-structure)
    - [Error Response Structure](#error-response-structure)
    - [HTTP Status Codes Used](#http-status-codes-used)
 
-13. [Rate Limiting and Security](#rate-limiting-and-security)
+14. [Rate Limiting and Security](#rate-limiting-and-security)
 
-14. [Testing the API](#testing-the-api)
+15. [Testing the API](#testing-the-api)
    - [Using cURL](#using-curl)
    - [Using Postman](#using-postman)
 
@@ -3597,6 +3607,704 @@ Retrieves previously calculated credit scoring results for a client.
 
 ---
 
+## Results Management Endpoints
+
+The Results API provides comprehensive endpoints for retrieving, analyzing, and exporting credit scoring results. This API supports role-based access control with different data visibility for administrators and institutions.
+
+### Role-Based Access Control
+
+- **Admin**: Full access to all data including sensitive weight calculations
+- **Institution**: Access limited to their own client data, sensitive weight fields are filtered out
+
+### Sensitive Fields (Admin Only)
+
+The following fields are only visible to admin users:
+- `sum_normalised_credit_limit_weights`
+- `sum_normalised_interest_rate_weights`
+- `creditLimitWeight` (in detailed variable breakdown)
+- `interestRateWeight` (in detailed variable breakdown)
+- `categoryWeights` (in detailed variable breakdown)
+
+---
+
+### 1. Get All Results
+
+Retrieve all results with advanced filtering, search, and pagination capabilities.
+
+**Endpoint:** `GET /api/result`  
+**Authentication:** Protected (Admin or Institution)  
+**Access:** Admin (all data), Institution (own data only)
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `page` | integer | No | 1 | Page number for pagination |
+| `limit` | integer | No | 20 | Number of results per page (max 100) |
+| `sortBy` | string | No | createdAt | Field to sort by (createdAt, credit_limit, interest_rate) |
+| `sortOrder` | string | No | DESC | Sort order (ASC, DESC) |
+| `search` | string | No | - | Search in client name, reference, email, phone |
+| `uploadBatchId` | integer | No | - | Filter by specific upload batch |
+| `minCreditLimit` | float | No | - | Minimum credit limit filter |
+| `maxCreditLimit` | float | No | - | Maximum credit limit filter |
+| `minInterestRate` | float | No | - | Minimum interest rate filter |
+| `maxInterestRate` | float | No | - | Maximum interest rate filter |
+| `dateFrom` | string | No | - | Start date filter (ISO 8601 format) |
+| `dateTo` | string | No | - | End date filter (ISO 8601 format) |
+| `clientId` | integer | No | - | Filter by specific client |
+
+#### Request Example
+
+```bash
+curl -X GET "http://localhost:3000/api/result?page=1&limit=10&search=john&minCreditLimit=100000&sortBy=credit_limit&sortOrder=DESC" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json"
+```
+
+#### Response
+
+**Success (200 OK)**
+```json
+{
+  "success": true,
+  "message": "Results retrieved successfully",
+  "data": {
+    "results": [
+      {
+        "id": 1,
+        "clientId": 123,
+        "credit_limit": 500000.00,
+        "interest_rate": 12.5,
+        "uploadBatchId": 45,
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "updatedAt": "2024-01-15T10:30:00.000Z",
+        "client": {
+          "id": 123,
+          "reference_number": "CLIENT001",
+          "name": "John Doe",
+          "email": "john.doe@example.com",
+          "phoneNumber": "+237677777777"
+        },
+        "uploadBatch": {
+          "id": 45,
+          "name": "January 2024 Upload",
+          "filename": "clients_jan_2024.csv",
+          "createdAt": "2024-01-15T09:00:00.000Z",
+          "status": "completed"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 150,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 15
+    },
+    "summary": {
+      "totalResults": 150,
+      "avgCreditLimit": 425000.50,
+      "creditLimitRange": {
+        "min": 50000.00,
+        "max": 1000000.00
+      },
+      "avgInterestRate": 14.2,
+      "interestRateRange": {
+        "min": 8.5,
+        "max": 25.0
+      }
+    },
+    "filters": {
+      "applied": {
+        "search": "john",
+        "minCreditLimit": 100000,
+        "uploadBatchId": null,
+        "maxCreditLimit": null,
+        "minInterestRate": null,
+        "maxInterestRate": null,
+        "dateFrom": null,
+        "dateTo": null,
+        "clientId": null
+      }
+    }
+  }
+}
+```
+
+**Error Responses**
+
+*401 Unauthorized*
+```json
+{
+  "success": false,
+  "message": "Unauthorized: No authorization header provided"
+}
+```
+
+*500 Internal Server Error*
+```json
+{
+  "success": false,
+  "message": "Error fetching results",
+  "error": "Database connection failed"
+}
+```
+
+---
+
+### 2. Get Latest Client Result
+
+Retrieve the most recent result for a specific client.
+
+**Endpoint:** `GET /api/result/client/{clientId}/latest`  
+**Authentication:** Protected (Admin or Institution)  
+**Access:** Admin (all clients), Institution (own clients only)
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `clientId` | integer | Yes | Unique client identifier |
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `uploadBatchId` | integer | No | - | Get result from specific upload batch |
+
+#### Request Example
+
+```bash
+curl -X GET "http://localhost:3000/api/result/client/123/latest?uploadBatchId=45" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json"
+```
+
+#### Response
+
+**Success (200 OK)**
+```json
+{
+  "success": true,
+  "message": "Latest client result retrieved successfully",
+  "data": {
+    "id": 1,
+    "clientId": 123,
+    "credit_limit": 500000.00,
+    "interest_rate": 12.5,
+    "uploadBatchId": 45,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z",
+    "client": {
+      "id": 123,
+      "reference_number": "CLIENT001",
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "phoneNumber": "+237677777777"
+    },
+    "uploadBatch": {
+      "id": 45,
+      "name": "January 2024 Upload",
+      "filename": "clients_jan_2024.csv",
+      "createdAt": "2024-01-15T09:00:00.000Z"
+    }
+  }
+}
+```
+
+**Error Responses**
+
+*404 Not Found*
+```json
+{
+  "success": false,
+  "message": "Client not found or access denied"
+}
+```
+
+*404 Not Found*
+```json
+{
+  "success": false,
+  "message": "Client result not found"
+}
+```
+
+---
+
+### 3. Get Client Result History
+
+Retrieve paginated history of all results for a specific client.
+
+**Endpoint:** `GET /api/result/client/{clientId}/history`  
+**Authentication:** Protected (Admin or Institution)  
+**Access:** Admin (all clients), Institution (own clients only)
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `clientId` | integer | Yes | Unique client identifier |
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `page` | integer | No | 1 | Page number for pagination |
+| `limit` | integer | No | 10 | Number of results per page |
+| `sortBy` | string | No | createdAt | Field to sort by |
+| `sortOrder` | string | No | DESC | Sort order (ASC, DESC) |
+| `uploadBatchId` | integer | No | - | Filter by upload batch |
+
+#### Request Example
+
+```bash
+curl -X GET "http://localhost:3000/api/result/client/123/history?page=1&limit=5&sortOrder=DESC" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json"
+```
+
+#### Response
+
+**Success (200 OK)**
+```json
+{
+  "success": true,
+  "message": "Client result history retrieved successfully",
+  "data": {
+    "results": [
+      {
+        "id": 3,
+        "clientId": 123,
+        "credit_limit": 520000.00,
+        "interest_rate": 11.8,
+        "uploadBatchId": 47,
+        "createdAt": "2024-02-15T10:30:00.000Z",
+        "updatedAt": "2024-02-15T10:30:00.000Z",
+        "client": {
+          "id": 123,
+          "reference_number": "CLIENT001",
+          "name": "John Doe",
+          "email": "john.doe@example.com",
+          "phoneNumber": "+237677777777"
+        },
+        "uploadBatch": {
+          "id": 47,
+          "name": "February 2024 Upload",
+          "filename": "clients_feb_2024.csv",
+          "createdAt": "2024-02-15T09:00:00.000Z",
+          "status": "completed"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 8,
+      "page": 1,
+      "limit": 5,
+      "totalPages": 2
+    }
+  }
+}
+```
+
+---
+
+### 4. Get Detailed Client Result
+
+Retrieve detailed client result with variable breakdown and normalization data.
+
+**Endpoint:** `GET /api/result/client/{clientId}/detailed`  
+**Authentication:** Protected (Admin or Institution)  
+**Access:** Admin (full details), Institution (limited details, no weights)
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `clientId` | integer | Yes | Unique client identifier |
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `uploadBatchId` | integer | No | - | Get details from specific upload batch |
+
+#### Request Example
+
+```bash
+curl -X GET "http://localhost:3000/api/result/client/123/detailed?uploadBatchId=45" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json"
+```
+
+#### Response
+
+**Success (200 OK) - Admin View**
+```json
+{
+  "success": true,
+  "message": "Detailed client result retrieved successfully",
+  "data": {
+    "clientResult": {
+      "id": 1,
+      "clientId": 123,
+      "credit_limit": 500000.00,
+      "interest_rate": 12.5,
+      "sum_normalised_credit_limit_weights": 0.75,
+      "sum_normalised_interest_rate_weights": 0.68,
+      "uploadBatchId": 45,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z",
+      "client": {
+        "id": 123,
+        "reference_number": "CLIENT001",
+        "name": "John Doe",
+        "email": "john.doe@example.com",
+        "phoneNumber": "+237677777777"
+      },
+      "uploadBatch": {
+        "id": 45,
+        "name": "January 2024 Upload",
+        "filename": "clients_jan_2024.csv",
+        "createdAt": "2024-01-15T09:00:00.000Z"
+      }
+    },
+    "variableBreakdown": {
+      "Financial Information": [
+        {
+          "variableId": 1,
+          "variableName": "Monthly Income",
+          "uniqueCode": "monthly_income",
+          "responseType": "number",
+          "rawValue": 750000,
+          "normalizedValue": 0.85,
+          "variableProportion": 0.25,
+          "creditLimitWeight": 0.22,
+          "interestRateWeight": 0.18,
+          "categoryWeights": {
+            "creditLimit": 0.40,
+            "interestRate": 0.35
+          }
+        }
+      ]
+    },
+    "totalVariables": 8,
+    "categoriesCount": 3
+  }
+}
+```
+
+**Success (200 OK) - Institution View**
+```json
+{
+  "success": true,
+  "message": "Detailed client result retrieved successfully",
+  "data": {
+    "clientResult": {
+      "id": 1,
+      "clientId": 123,
+      "credit_limit": 500000.00,
+      "interest_rate": 12.5,
+      "uploadBatchId": 45,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z",
+      "client": {
+        "id": 123,
+        "reference_number": "CLIENT001",
+        "name": "John Doe",
+        "email": "john.doe@example.com",
+        "phoneNumber": "+237677777777"
+      },
+      "uploadBatch": {
+        "id": 45,
+        "name": "January 2024 Upload",
+        "filename": "clients_jan_2024.csv",
+        "createdAt": "2024-01-15T09:00:00.000Z"
+      }
+    },
+    "variableBreakdown": {
+      "Financial Information": [
+        {
+          "variableId": 1,
+          "variableName": "Monthly Income",
+          "uniqueCode": "monthly_income",
+          "responseType": "number",
+          "rawValue": 750000,
+          "normalizedValue": 0.85,
+          "variableProportion": 0.25
+        }
+      ]
+    },
+    "totalVariables": 8,
+    "categoriesCount": 3
+  }
+}
+```
+
+---
+
+### 5. Get Results by Upload Batch
+
+Retrieve all results from a specific upload batch with pagination and search.
+
+**Endpoint:** `GET /api/result/batch/{uploadBatchId}`  
+**Authentication:** Protected (Admin or Institution)  
+**Access:** Admin (all batches), Institution (own batches only)
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `uploadBatchId` | integer | Yes | Upload batch identifier |
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `page` | integer | No | 1 | Page number for pagination |
+| `limit` | integer | No | 20 | Number of results per page |
+| `sortBy` | string | No | createdAt | Field to sort by |
+| `sortOrder` | string | No | DESC | Sort order (ASC, DESC) |
+| `search` | string | No | - | Search in client name, reference, email |
+
+#### Request Example
+
+```bash
+curl -X GET "http://localhost:3000/api/result/batch/45?page=1&limit=10&search=john" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json"
+```
+
+#### Response
+
+**Success (200 OK)**
+```json
+{
+  "success": true,
+  "message": "Batch results retrieved successfully",
+  "data": {
+    "results": [
+      {
+        "id": 1,
+        "clientId": 123,
+        "credit_limit": 500000.00,
+        "interest_rate": 12.5,
+        "uploadBatchId": 45,
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "updatedAt": "2024-01-15T10:30:00.000Z",
+        "client": {
+          "id": 123,
+          "reference_number": "CLIENT001",
+          "name": "John Doe",
+          "email": "john.doe@example.com",
+          "phoneNumber": "+237677777777"
+        },
+        "uploadBatch": {
+          "id": 45,
+          "name": "January 2024 Upload",
+          "filename": "clients_jan_2024.csv",
+          "createdAt": "2024-01-15T09:00:00.000Z",
+          "status": "completed"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 25,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 3
+    },
+    "batchSummary": {
+      "totalClients": 25,
+      "avgCreditLimit": 425000.50,
+      "avgInterestRate": 14.2,
+      "totalCreditLimit": 10625012.50
+    }
+  }
+}
+```
+
+**Error Responses**
+
+*404 Not Found*
+```json
+{
+  "success": false,
+  "message": "Upload batch not found or access denied"
+}
+```
+
+---
+
+### 6. Compare Results
+
+Compare results between different batches or time periods with statistical analysis.
+
+**Endpoint:** `GET /api/result/compare`  
+**Authentication:** Protected (Admin or Institution)  
+**Access:** Admin (all data), Institution (own data only)
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `batch1Id` | integer | No* | - | First batch ID for comparison |
+| `batch2Id` | integer | No | - | Second batch ID for comparison |
+| `dateFrom1` | string | No* | - | Start date for first dataset (ISO 8601) |
+| `dateTo1` | string | No | - | End date for first dataset (ISO 8601) |
+| `dateFrom2` | string | No | - | Start date for second dataset (ISO 8601) |
+| `dateTo2` | string | No | - | End date for second dataset (ISO 8601) |
+| `clientIds` | string | No | - | Comma-separated client IDs to compare |
+
+*Either `batch1Id` or `dateFrom1` is required for the first dataset.
+
+#### Request Example
+
+```bash
+curl -X GET "http://localhost:3000/api/result/compare?batch1Id=45&batch2Id=47&clientIds=123,124,125" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json"
+```
+
+#### Response
+
+**Success (200 OK)**
+```json
+{
+  "success": true,
+  "message": "Results comparison completed successfully",
+  "data": {
+    "dataset1": {
+      "count": 25,
+      "avgCreditLimit": 425000.50,
+      "avgInterestRate": 14.2,
+      "creditLimitRange": {
+        "min": 50000.00,
+        "max": 800000.00
+      },
+      "interestRateRange": {
+        "min": 8.5,
+        "max": 22.0
+      }
+    },
+    "dataset2": {
+      "count": 28,
+      "avgCreditLimit": 445000.75,
+      "avgInterestRate": 13.8,
+      "creditLimitRange": {
+        "min": 60000.00,
+        "max": 850000.00
+      },
+      "interestRateRange": {
+        "min": 8.0,
+        "max": 21.5
+      }
+    },
+    "differences": {
+      "countDiff": 3,
+      "avgCreditLimitDiff": 20000.25,
+      "avgInterestRateDiff": -0.4,
+      "avgCreditLimitPercentChange": 4.71,
+      "avgInterestRatePercentChange": -2.82
+    }
+  }
+}
+```
+
+**Error Responses**
+
+*400 Bad Request*
+```json
+{
+  "success": false,
+  "message": "Either batch1Id or dateFrom1 is required for comparison"
+}
+```
+
+*404 Not Found*
+```json
+{
+  "success": false,
+  "message": "Batch 1 not found or access denied"
+}
+```
+
+---
+
+### 7. Export Results
+
+Export results to CSV or JSON format with filtering options.
+
+**Endpoint:** `GET /api/result/export`  
+**Authentication:** Protected (Admin or Institution)  
+**Access:** Admin (all data), Institution (own data only)
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `uploadBatchId` | integer | No | - | Filter by upload batch |
+| `clientIds` | string | No | - | Comma-separated client IDs |
+| `dateFrom` | string | No | - | Start date filter (ISO 8601) |
+| `dateTo` | string | No | - | End date filter (ISO 8601) |
+| `format` | string | No | csv | Export format (csv, json) |
+
+#### Request Example
+
+```bash
+# Export as CSV
+curl -X GET "http://localhost:3000/api/result/export?uploadBatchId=45&format=csv" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -o results_export.csv
+
+# Export as JSON
+curl -X GET "http://localhost:3000/api/result/export?clientIds=123,124,125&format=json" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json"
+```
+
+#### Response
+
+**Success (200 OK) - CSV Format**
+```
+Content-Type: text/csv
+Content-Disposition: attachment; filename="client_results_export.csv"
+
+"Client ID","Client Name","Email","Phone","Credit Limit","Interest Rate","Upload Batch","Created At"
+"CLIENT001","John Doe","john.doe@example.com","+237677777777","500000","12.5","January 2024 Upload","2024-01-15T10:30:00.000Z"
+"CLIENT002","Jane Smith","jane.smith@example.com","+237688888888","450000","13.2","January 2024 Upload","2024-01-15T10:35:00.000Z"
+```
+
+**Success (200 OK) - JSON Format**
+```json
+{
+  "success": true,
+  "message": "Results exported successfully",
+  "data": [
+    {
+      "id": 1,
+      "clientId": 123,
+      "credit_limit": 500000.00,
+      "interest_rate": 12.5,
+      "uploadBatchId": 45,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z",
+      "client": {
+        "reference_number": "CLIENT001",
+        "name": "John Doe",
+        "email": "john.doe@example.com",
+        "phoneNumber": "+237677777777"
+      },
+      "uploadBatch": {
+        "name": "January 2024 Upload",
+        "filename": "clients_jan_2024.csv"
+      }
+    }
+  ]
+}
+```
+
+---
+
 ## Data Models
 
 ### Admin Model
@@ -4569,7 +5277,159 @@ curl -X GET "http://localhost:3000/api/csv/batches?page=1&limit=20&status=comple
 
 ---
 
-### 3. Get Upload Batch Details
+### 3. Get Upload Batches for Institution
+
+Retrieves a paginated list of upload batches for a specific institution. This endpoint allows administrators to view upload batches for any institution, while institutions can only view their own batches.
+
+**Endpoint:** `GET /api/csv/upload/batches/{institutionId}`  
+**Authentication:** Protected (Admin or Institution)  
+**Content-Type:** `application/json`
+
+#### Path Parameters
+```
+institutionId: integer (required) - The ID of the institution whose upload batches to retrieve
+```
+
+#### Query Parameters
+```
+page: number (optional, default: 1) - Page number for pagination
+limit: number (optional, default: 10) - Number of items per page
+status: string (optional) - Filter by batch status
+  Possible values: 'processing', 'completed', 'failed', 'completed_with_errors'
+dateFrom: string (optional) - Start date filter (ISO 8601 format)
+dateTo: string (optional) - End date filter (ISO 8601 format)
+```
+
+#### Request Examples
+```bash
+# Get upload batches for institution ID 5
+curl -X GET "http://localhost:3000/api/csv/upload/batches/5?page=1&limit=20&status=completed" \
+  -H "Authorization: Bearer <your-jwt-token>"
+
+# Get upload batches with date range filtering
+curl -X GET "http://localhost:3000/api/csv/upload/batches/5?dateFrom=2024-01-01&dateTo=2024-01-31" \
+  -H "Authorization: Bearer <your-jwt-token>"
+
+# Get completed batches within a date range
+curl -X GET "http://localhost:3000/api/csv/upload/batches/5?status=completed&dateFrom=2024-01-01&dateTo=2024-01-31&page=1&limit=10" \
+  -H "Authorization: Bearer <your-jwt-token>"
+```
+
+#### Response
+
+**Success (200 OK)**
+```json
+{
+  "success": true,
+  "data": {
+    "batches": [
+      {
+        "id": 123,
+        "institutionId": 5,
+        "filename": "clients_data.csv",
+        "name": "January 2024 Client Upload",
+        "description": "Monthly client data upload for January 2024",
+        "status": "completed",
+        "total_records": 150,
+        "processed_records": 148,
+        "failed_records": 2,
+        "uploaded_by": 1,
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "updatedAt": "2024-01-15T10:30:00.000Z"
+      },
+      {
+        "id": 122,
+        "institutionId": 5,
+        "filename": "weekly_update.csv",
+        "name": "Weekly Update Batch",
+        "description": "Weekly client data update",
+        "status": "completed_with_errors",
+        "total_records": 75,
+        "processed_records": 70,
+        "failed_records": 5,
+        "uploaded_by": 1,
+        "createdAt": "2024-01-10T14:20:00.000Z",
+        "updatedAt": "2024-01-10T14:20:00.000Z"
+      }
+    ],
+    "pagination": {
+      "total": 45,
+      "page": 1,
+      "limit": 20,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+**Error Responses**
+
+*400 Bad Request - Invalid Institution ID*
+```json
+{
+  "success": false,
+  "message": "Invalid institution ID provided"
+}
+```
+
+*401 Unauthorized*
+```json
+{
+  "success": false,
+  "message": "Authentication required"
+}
+```
+
+*403 Forbidden - Institution Access Violation*
+```json
+{
+  "success": false,
+  "message": "Access denied to institution data"
+}
+```
+
+*500 Internal Server Error*
+```json
+{
+  "success": false,
+  "message": "Error fetching upload batches for institution",
+  "error": "Database query failed"
+}
+```
+
+#### Access Control
+
+**Administrator Access:**
+- Can view upload batches for any institution
+- Full access to all batch data and statistics
+- Can filter by any institution ID
+
+**Institution Access:**
+- Can only view upload batches for their own institution
+- Access is automatically restricted to `institutionId` matching their user ID
+- Cannot access batches from other institutions
+
+#### Business Logic
+
+1. **Institution Validation:** The system validates that the requested institution exists
+2. **Access Control:** Institution users can only access their own institution's batches
+3. **Pagination:** Results are paginated with configurable page size (default: 10, max: 100)
+4. **Status Filtering:** Optional filtering by batch status to focus on specific processing states
+5. **Date Filtering:** Optional filtering by creation date range using `dateFrom` and `dateTo` parameters
+6. **Ordering:** Results are ordered by creation date (newest first)
+
+#### Use Cases
+
+- **Administrators:** Monitor upload activity across all institutions
+- **Institution Users:** View their own upload history and processing status
+- **Batch Management:** Track processing progress and identify failed uploads
+- **Audit Trail:** Maintain records of all data uploads for compliance
+- **Date Range Analysis:** Filter uploads by specific time periods for reporting
+- **Monthly/Quarterly Reports:** Generate reports for specific date ranges
+
+---
+
+### 4. Get Upload Batch Details
 
 Retrieves detailed information about a specific upload batch, including processed clients and their status.
 
@@ -4666,7 +5526,7 @@ curl -X GET http://localhost:3000/api/csv/batch/123 \
 
 ---
 
-### 4. Get Upload Batch Errors
+### 5. Get Upload Batch Errors
 
 Retrieves detailed error information for a specific upload batch, useful for debugging failed records.
 
@@ -4761,7 +5621,7 @@ curl -X GET http://localhost:3000/api/csv/batch/123/errors \
 
 ---
 
-### 5. Download CSV Template
+### 6. Download CSV Template
 
 Downloads a CSV template file with proper headers and sample data to help users format their CSV files correctly.
 

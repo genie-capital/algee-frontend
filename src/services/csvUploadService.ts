@@ -3,7 +3,7 @@ import api from './api';
 export interface UploadBatch {
   id: number;
   filename: string;
-  status: 'completed' | 'failed' | 'processing';
+  status: 'completed' | 'failed' | 'processing' | 'completed_with_errors';
   total_records: number;
   processed_records: number;
   failed_records: number;
@@ -100,13 +100,28 @@ export const csvUploadService = {
     return response.data;
   },
 
-  // Get all upload batches
+  // Get all upload batches (admin only)
   getUploadBatches: async (params: {
     page?: number;
     limit?: number;
     status?: 'processing' | 'completed' | 'failed' | 'completed_with_errors';
   }) => {
     const response = await api.get('/csv/batches', { params });
+    return response.data;
+  },
+
+  // Get upload batches for a specific institution
+  getUploadBatchesForInstitution: async (
+    institutionId: number,
+    params: {
+      page?: number;
+      limit?: number;
+      status?: 'processing' | 'completed' | 'failed' | 'completed_with_errors';
+      dateFrom?: string;
+      dateTo?: string;
+    }
+  ) => {
+    const response = await api.get(`/csv/upload/batches/${institutionId}`, { params });
     return response.data;
   },
 
@@ -138,4 +153,4 @@ export const csvUploadService = {
   },
 };
 
-export default csvUploadService; 
+export default csvUploadService;
