@@ -256,7 +256,7 @@ const BatchAssessmentDetails = () => {
                   <td className="px-6 py-4 whitespace-nowrap">{client.client.reference_number}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{client.client.phoneNumber}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{client.credit_limit !== undefined ? client.credit_limit : '-'}FCFA</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{client.interest_rate !== undefined ? client.interest_rate : '-'}%</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{client.interest_rate !== undefined ? (client.interest_rate).toFixed(2) : '-'}%</td>
                   <td className="px-6 py-4 whitespace-nowrap">{client.createdAt ? formatDate(client.createdAt) : '-'}</td>
                 </tr>
               ))}

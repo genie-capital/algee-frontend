@@ -14,7 +14,7 @@ interface BatchJob {
   status: 'completed' | 'failed';
 }
 
-type StatusFilter = 'all' | 'completed' | 'failed' | 'processing' | 'completed_with_errors';
+type StatusFilter = 'all' | 'completed' | 'completed_with_errors';
 
 interface Pagination {
   total: number;
@@ -454,20 +454,6 @@ const BatchAssessment = () => {
               Completed
             </Button>
             <Button
-              variant={statusFilter === 'failed' ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => handleStatusFilterChange('failed')}
-            >
-              Failed
-            </Button>
-            <Button
-              variant={statusFilter === 'processing' ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => handleStatusFilterChange('processing')}
-            >
-              Processing
-            </Button>
-            <Button
               variant={statusFilter === 'completed_with_errors' ? 'primary' : 'outline'}
               size="sm"
               onClick={() => handleStatusFilterChange('completed_with_errors')}
@@ -545,7 +531,7 @@ const BatchAssessment = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {(job.status === 'completed' || job.status === 'completed_with_errors') && (
+                          {job.status === 'completed' && (
                             <Button 
                               variant="outline" 
                               size="sm"
